@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="gradientPrimary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F172A"/>
+      <stop offset="50%" style="stop-color:#1E3A8A"/>
+      <stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="gradientAccent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#06B6D4"/>
+      <stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background circle with subtle gradient -->
+  <circle cx="60" cy="60" r="56" fill="url(#gradientPrimary)" opacity="0.15"/>
+  <circle cx="60" cy="60" r="56" stroke="url(#gradientAccent)" stroke-width="1.5" fill="none"/>
+  
+  <!-- Core symbol: Depth/Analysis representation -->
+  <!-- Outer ring - market cycles -->
+  <path d="M60 12 
+           A48 48 0 0 1 108 60 
+           A48 48 0 0 1 60 108 
+           A48 48 0 0 1 12 60 
+           A48 48 0 0 1 60 12" 
+        fill="none" stroke="url(#gradientAccent)" stroke-width="2.5" stroke-linecap="round" 
+        stroke-dasharray="12 8" opacity="0.6"/>
+  
+  <!-- Inner upward trending path - growth/depth analysis -->
+  <path d="M30 75 
+           C40 65, 50 55, 60 50 
+           C70 45, 80 40, 90 35" 
+        fill="none" stroke="url(#gradientAccent)" stroke-width="3" stroke-linecap="round" 
+        stroke-linejoin="round" filter="url(#glow)"/>
+  
+  <!-- Data points on the trend -->
+  <circle cx="40" cy="62" r="3.5" fill="#06B6D4" filter="url(#glow)"/>
+  <circle cx="60" cy="50" r="4.5" fill="#3B82F6" filter="url(#glow)"/>
+  <circle cx="80" cy="42" r="3.5" fill="#06B6D4" filter="url(#glow)"/>
+  
+  <!-- Central dot - the core/vantage point -->
+  <circle cx="60" cy="60" r="6" fill="#0F172A" stroke="url(#gradientAccent)" stroke-width="2"/>
+  <circle cx="60" cy="60" r="2.5" fill="url(#gradientAccent)"/>
+  
+  <!-- Subtle grid lines - analytical depth -->
+  <g stroke="#3B82F6" stroke-width="0.5" opacity="0.15">
+    <line x1="24" y1="84" x2="96" y2="84"/>
+    <line x1="24" y1="72" x2="96" y2="72"/>
+    <line x1="24" y1="60" x2="96" y2="60"/>
+    <line x1="24" y1="48" x2="96" y2="48"/>
+    <line x1="36" y1="24" x2="36" y2="96"/>
+    <line x1="60" y1="24" x2="60" y2="96"/>
+    <line x1="84" y1="24" x2="84" y2="96"/>
+  </g>
+</svg>

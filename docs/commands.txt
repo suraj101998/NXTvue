@@ -1,0 +1,219 @@
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                     StocksAgent — Complete Command Reference                     ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+All commands are run from the project root:
+  cd /Users/surajchakraborty/git/StocksAgent
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SETUP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Install all dependencies
+pip install -r requirements.txt
+
+# Set your Bob API key (one-time — persists across runs)
+echo 'BOB_API_KEY=your-key-here' >> .env
+
+# Or export it temporarily for the current shell session
+export BOB_API_KEY='your-key-here'
+
+# Copy the example env file and fill in your key
+cp .env.example .env
+
+# Show CLI help
+python main.py --help
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SINGLE STOCK REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Indian stock — report saved to reports/NETWEB.pdf
+python main.py NETWEB --market india --year 2026 --output
+
+# US stock — report saved to reports/AAPL.pdf
+python main.py AAPL --market us --year 2026 --output
+
+# Indian stock — default market is india, so --market can be omitted
+python main.py LUPIN --year 2026 --output
+
+# Indian stock — specify a custom output path
+python main.py NETWEB --market india --year 2026 --output ~/Desktop/netweb_report.pdf
+
+# Change projection year
+python main.py TCS --market india --year 2027 --output
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BATCH MODE — MULTIPLE TICKERS AT ONCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Multiple Indian stocks — one PDF per ticker in reports/
+python main.py NETWEB LUPIN TCS --market india --output
+
+# Multiple US stocks — one PDF per ticker
+python main.py AAPL MSFT GOOGL --market us --output
+
+# Mixed markets using TICKER:market syntax (no --market flag needed)
+python main.py NETWEB:india AAPL:us TCS:india MSFT:us --output
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ WATCHLIST MODE — TICKERS FROM A FILE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Run all tickers in watchlist.txt (all Indian, default market)
+python main.py --watchlist watchlist.txt --market india --output
+
+# Watchlist with mixed markets — add TICKER:market per line in the file
+#   Example watchlist.txt lines:
+#     NETWEB:india
+#     AAPL:us
+#     LUPIN
+python main.py --watchlist watchlist.txt --output
+
+# Watchlist + extra tickers on the command line (combined, deduped)
+python main.py INFY --watchlist watchlist.txt --market india --output
+
+# Watchlist with a different projection year
+python main.py --watchlist watchlist.txt --market india --year 2027 --output
+
+# watchlist.txt format:
+#   - One TICKER or TICKER:market per line
+#   - Lines starting with # are treated as comments and ignored
+#   - Blank lines are ignored
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ COMPARE MODE — SIDE-BY-SIDE TWO STOCKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Compare two Indian stocks — saved to reports/NETWEB_vs_KPIT.pdf
+python main.py NETWEB KPIT --compare --market india --output
+
+# Compare two US stocks — saved to reports/AAPL_vs_MSFT.pdf
+python main.py AAPL MSFT --compare --market us --output
+
+# Compare with a custom output path
+python main.py NETWEB KPIT --compare --market india --output ~/Desktop/comparison.pdf
+
+# Compare with a specific projection year
+python main.py LUPIN SUNPHARMA --compare --market india --year 2027 --output
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ PORTFOLIO MODE — HOLDINGS FROM A SPREADSHEET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Analyse your portfolio from holdings.xlsx — saved to reports/PORTFOLIO.pdf
+python main.py --portfolio holdings.xlsx --output
+
+# Specify a custom output path
+python main.py --portfolio holdings.xlsx --output ~/Desktop/portfolio_report.pdf
+
+# Change projection year
+python main.py --portfolio holdings.xlsx --year 2027 --output
+
+# holdings.xlsx / holdings.csv required columns (any capitalisation accepted):
+#   ticker   — stock symbol      (e.g. NETWEB, AAPL)
+#   qty      — number of shares  (e.g. 10)
+#   avg_cost — average buy price (e.g. 3200)
+#
+# Optional column:
+#   market   — "india" or "us"   (defaults to "india" if omitted)
+#
+# Example rows:
+#   ticker,  qty, avg_cost, market
+#   NETWEB,  10,  3200,     india
+#   LUPIN,   20,  1500,     india
+#   AAPL,    3,   175,      us
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ TICKER:MARKET SYNTAX — OVERRIDE MARKET PER TICKER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Appending :india or :us to any ticker overrides the --market default for that ticker
+python main.py NETWEB:india AAPL:us LUPIN:india MSFT:us --output
+
+# Works in watchlist.txt too — just add :market after the ticker on any line
+#   NETWEB:india
+#   AAPL:us
+#   LUPIN            ← uses --market default (india)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ FLAGS REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  TICKER[:market]          Positional — one or more stock symbols
+  --market  india|us       Default market when no :market suffix given (default: india)
+  --year    YYYY           Projection year for the report (default: 2026)
+  --output  [FILE]         Save as PDF. No value → reports/<TICKER>.pdf (auto-named)
+  --watchlist FILE         Load tickers from a text file (TICKER[:market] per line)
+  --compare                Side-by-side report for exactly 2 tickers
+  --portfolio FILE         Load a holdings .xlsx/.csv and generate a portfolio report
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  reports/TICKER.pdf           Single / batch reports (auto-named, overwrites on re-run)
+  reports/A_vs_B.pdf           Compare reports
+  reports/PORTFOLIO.pdf        Portfolio report (auto-named)
+  <custom path>                Any path passed to --output FILE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ WHAT EACH REPORT CONTAINS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Single stock report  (12 sections)
+  ├── 1.  Business quality & sector positioning
+  ├── 2.  Financial performance (annual + quarterly)
+  ├── 3.  Balance-sheet analysis
+  ├── 4.  Order book & revenue visibility
+  ├── 5.  Shareholding pattern
+  ├── 6.  Valuation (P/E, P/B, ROCE, ROE, peer comparison)
+  ├── 7.  End-year projection (bear / base / bull)
+  ├── 8.  Growth potential
+  ├── 9.  Key risks + forensic red flags
+  ├── 10. What would make me bullish?
+  ├── 11. What would make me bearish?
+  ├── 12. Technical trading signals
+  │       (MACD, Bollinger Bands, OBV, RSI, Golden/Death Cross,
+  │        Double Top/Bottom, Breakout/Breakdown)
+  └──     Final investment judgement
+
+  Compare report  (A vs B)
+  ├── Summary verdict
+  ├── Head-to-head scorecard table
+  ├── Business / Financial / Valuation / Shareholding / Risk sections
+  ├── End-year projection for each
+  ├── Which stock for which investor (table)
+  └── Final verdict
+
+  Portfolio report
+  ├── Portfolio snapshot table (all holdings with P&L)
+  ├── Key statistics (total invested / value / P&L / return %)
+  ├── Allocation analysis (weights, concentration flags)
+  ├── Risk assessment
+  ├── Individual stock stances (hold / trim / add)
+  ├── Rebalancing recommendations
+  └── Final portfolio verdict
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ QUICK-START EXAMPLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# First-time setup
+pip install -r requirements.txt
+echo 'BOB_API_KEY=your-key-here' >> .env
+
+# My first report
+python main.py NETWEB --market india --year 2026 --output
+
+# Compare two pharma stocks
+python main.py LUPIN SUNPHARMA --compare --market india --output
+
+# Run my entire watchlist overnight
+python main.py --watchlist watchlist.txt --output
+
+# Check my portfolio health
+python main.py --portfolio holdings.xlsx --output
+
+# Mixed India + US in one command
+python main.py NETWEB:india AAPL:us TCS:india MSFT:us --output

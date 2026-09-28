@@ -1,0 +1,10 @@
+# StocksAgent watchlist — one ticker per line, # = comment
+# Indian stocks (use with --market india)
+STLTECH:india
+MCX:india
+Astra Micro Wave:india
+NVDA:us
+AAPL:us
+
+
+# Add your tickers below:

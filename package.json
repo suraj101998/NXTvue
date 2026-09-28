@@ -1,0 +1,30 @@
+{
+  "name": "nxtvue",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "cd apps/backend && python -m nxtvue.main",
+    "dev:frontend": "cd apps/frontend/nxtvue-web && npm run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:frontend": "cd apps/frontend/nxtvue-web && npm run build",
+    "build:backend": "cd apps/backend && pip install -e .",
+    "build": "npm run build:frontend && npm run build:backend",
+    "lint:frontend": "cd apps/frontend/nxtvue-web && npm run lint",
+    "lint:backend": "cd apps/backend && ruff check src/ && black --check src/",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "test:backend": "cd apps/backend && pytest",
+    "test": "npm run test:backend",
+    "install:all": "npm install && cd apps/frontend/nxtvue-web && npm install && cd ../.. && cd apps/backend && pip install -e \".[dev]\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "python": ">=3.11"
+  }
+}
