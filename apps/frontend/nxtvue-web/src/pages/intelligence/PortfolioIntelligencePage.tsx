@@ -1,93 +1,103 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Metric, MetricGroup } from '@/components/ui/Metric'
 import { AIInsight } from '@/components/ui/AIInsight'
 import { Badge } from '@/components/ui/Badge'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { ReportTable } from '@/components/charts/ChartContainer'
+import { ArrowRight, TrendingDown, Target, Shield, PieChart, Link as LinkIcon, RefreshCw, Download, Loader2 } from 'lucide-react'
+import { usePortfolioIntelligence } from '@/hooks/usePortfolioIntelligence'
 import { cn } from '@/utils/cn'
-import { ArrowRight, TrendingUp, TrendingDown, Target, Zap, Shield, PieChart, BarChart3, Link as LinkIcon, RefreshCw, Download } from 'lucide-react'
-
-const intelligenceData = {
-  healthScore: 82,
-  healthLabel: 'Well Diversified',
-  diversification: {
-    score: 78,
-    assets: 24,
-    assetClasses: 4,
-    sectors: 7,
-    geographies: 3,
-  },
-  risk: {
-    portfolioVolatility: '14.2%',
-    sharpe: '1.34',
-    sortino: '1.87',
-    var95: '-2.1%',
-    cvar95: '-3.4%',
-    maxDrawdown: '-12.8%',
-    currentDrawdown: '-3.2%',
-    beta: '0.94',
-    alpha: '4.2%',
-    trackingError: '3.8%',
-    calmar: '0.92',
-    ulcerIndex: '4.1%',
-  },
-  concentration: {
-    top5: '42%',
-    top10: '68%',
-    hhi: 0.18,
-    largestPosition: { symbol: 'RELIANCE', weight: '13.3%' },
-  },
-  sectorConcentration: [
-    { sector: 'Financial Services', weight: '28.5%', benchmark: '22.1%', deviation: '+6.4%' },
-    { sector: 'Oil & Gas', weight: '18.2%', benchmark: '12.5%', deviation: '+5.7%' },
-    { sector: 'Information Technology', weight: '15.3%', benchmark: '14.8%', deviation: '+0.5%' },
-    { sector: 'Consumer Goods', weight: '12.1%', benchmark: '10.2%', deviation: '+1.9%' },
-    { sector: 'Pharmaceuticals', weight: '8.7%', benchmark: '5.8%', deviation: '+2.9%' },
-    { sector: 'Automobile', weight: '6.4%', benchmark: '5.2%', deviation: '+1.2%' },
-    { sector: 'Others', weight: '10.8%', benchmark: '29.4%', deviation: '-18.6%' },
-  ],
-  currencyExposure: [
-    { currency: 'INR', weight: '92%', hedged: '0%' },
-    { currency: 'USD', weight: '5%', hedged: '0%' },
-    { currency: 'EUR', weight: '2%', hedged: '0%' },
-    { currency: 'Others', weight: '1%', hedged: '0%' },
-  ],
-  etfOverlap: [
-    { fund1: 'HDFC Top 100', fund2: 'ICICI Pru Bluechip', overlap: '67%', sharedHoldings: 34 },
-    { fund1: 'HDFC Top 100', fund2: 'Nippon India Large Cap', overlap: '52%', sharedHoldings: 28 },
-    { fund1: 'Parag Parikh Flexi', fund2: 'UTI Flexi Cap', overlap: '41%', sharedHoldings: 22 },
-  ],
-  correlationMatrix: {
-    assets: ['RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'BAJFINANCE', 'HDFCAMC', 'PARAGPAR', 'GOVT10Y'],
-    matrix: [
-      [1.00, 0.34, 0.67, 0.71, 0.58, 0.62, 0.55, -0.12],
-      [0.34, 1.00, 0.28, 0.31, 0.25, 0.45, 0.38, -0.08],
-      [0.67, 0.28, 1.00, 0.82, 0.55, 0.58, 0.51, -0.15],
-      [0.71, 0.31, 0.82, 1.00, 0.61, 0.62, 0.55, -0.18],
-      [0.58, 0.25, 0.55, 0.61, 1.00, 0.48, 0.42, -0.10],
-      [0.62, 0.45, 0.58, 0.62, 0.48, 1.00, 0.78, -0.05],
-      [0.55, 0.38, 0.51, 0.55, 0.42, 0.78, 1.00, -0.03],
-      [-0.12, -0.08, -0.15, -0.18, -0.10, -0.05, -0.03, 1.00],
-    ]
-  },
-  rebalancing: [
-    { action: 'Reduce', asset: 'RELIANCE', current: '13.3%', target: '10.0%', reason: 'Position size exceeds 10% threshold' },
-    { action: 'Increase', asset: 'Fixed Income', current: '8.0%', target: '15.0%', reason: 'Underweight vs strategic allocation' },
-    { action: 'Increase', asset: 'International Equity', current: '0%', target: '10.0%', reason: 'No international diversification' },
-    { action: 'Rebalance', asset: 'Financial Services', current: '28.5%', target: '22.0%', reason: 'Sector concentration above benchmark +6.4%' },
-  ],
-  drawdownPeriods: [
-    { period: 'Mar 2020 (COVID)', peak: '₹2.15 Cr', trough: '₹1.48 Cr', drawdown: '-31.2%', recoveryDays: 156 },
-    { period: 'Jun 2022 (Rate Hikes)', peak: '₹2.42 Cr', trough: '₹2.08 Cr', drawdown: '-14.0%', recoveryDays: 98 },
-    { period: 'Current', peak: '₹2.56 Cr', trough: '₹2.48 Cr', drawdown: '-3.2%', recoveryDays: 'Ongoing' },
-  ]
-}
 
 export function PortfolioIntelligencePage() {
   const [activeTab, setActiveTab] = useState<'health' | 'risk' | 'diversification' | 'correlation' | 'rebalancing' | 'drawdown'>('health')
+  const { data: apiData, loading, error, refresh } = usePortfolioIntelligence()
+
+  // Fallback mock data for when API is not available (using snake_case to match API)
+  const mockIntelligenceData = {
+    health_score: 82,
+    health_label: 'Well Diversified',
+    diversification: {
+      score: 78,
+      assets: 24,
+      asset_classes: 4,
+      sectors: 7,
+      geographies: 3,
+    },
+    risk: {
+      portfolio_volatility: '14.2%',
+      sharpe: '1.34',
+      sortino: '1.87',
+      var95: '-2.1%',
+      cvar95: '-3.4%',
+      max_drawdown: '-12.8%',
+      current_drawdown: '-3.2%',
+      beta: '0.94',
+      alpha: '4.2%',
+      tracking_error: '3.8%',
+      calmar: '0.92',
+      ulcer_index: '4.1%',
+    },
+    concentration: {
+      top5: '42%',
+      top10: '68%',
+      hhi: 0.18,
+      largest_position: { symbol: 'RELIANCE', weight: '13.3%' },
+    },
+    sector_concentration: [
+      { sector: 'Financial Services', weight: '28.5%', benchmark: '22.1%', deviation: '+6.4%' },
+      { sector: 'Oil & Gas', weight: '18.2%', benchmark: '12.5%', deviation: '+5.7%' },
+      { sector: 'Information Technology', weight: '15.3%', benchmark: '14.8%', deviation: '+0.5%' },
+      { sector: 'Consumer Goods', weight: '12.1%', benchmark: '10.2%', deviation: '+1.9%' },
+      { sector: 'Pharmaceuticals', weight: '8.7%', benchmark: '5.8%', deviation: '+2.9%' },
+      { sector: 'Automobile', weight: '6.4%', benchmark: '5.2%', deviation: '+1.2%' },
+      { sector: 'Others', weight: '10.8%', benchmark: '29.4%', deviation: '-18.6%' },
+    ],
+    currency_exposure: [
+      { currency: 'INR', weight: '92%', hedged: '0%' },
+      { currency: 'USD', weight: '5%', hedged: '0%' },
+      { currency: 'EUR', weight: '2%', hedged: '0%' },
+      { currency: 'Others', weight: '1%', hedged: '0%' },
+    ],
+    etf_overlap: [
+      { fund1: 'HDFC Top 100', fund2: 'ICICI Pru Bluechip', overlap: '67%', shared_holdings: 34 },
+      { fund1: 'HDFC Top 100', fund2: 'Nippon India Large Cap', overlap: '52%', shared_holdings: 28 },
+      { fund1: 'Parag Parikh Flexi', fund2: 'UTI Flexi Cap', overlap: '41%', shared_holdings: 22 },
+    ],
+    correlation_matrix: {
+      assets: ['RELIANCE', 'TCS', 'HDFCBANK', 'ICICIBANK', 'BAJFINANCE', 'HDFCAMC', 'PARAGPAR', 'GOVT10Y'],
+      matrix: [
+        [1.00, 0.34, 0.67, 0.71, 0.58, 0.62, 0.55, -0.12],
+        [0.34, 1.00, 0.28, 0.31, 0.25, 0.45, 0.38, -0.08],
+        [0.67, 0.28, 1.00, 0.82, 0.55, 0.58, 0.51, -0.15],
+        [0.71, 0.31, 0.82, 1.00, 0.61, 0.62, 0.55, -0.18],
+        [0.58, 0.25, 0.55, 0.61, 1.00, 0.48, 0.42, -0.10],
+        [0.62, 0.45, 0.58, 0.62, 0.48, 1.00, 0.78, -0.05],
+        [0.55, 0.38, 0.51, 0.55, 0.42, 0.78, 1.00, -0.03],
+        [-0.12, -0.08, -0.15, -0.18, -0.10, -0.05, -0.03, 1.00],
+      ]
+    },
+    rebalancing: [
+      { action: 'Reduce', asset: 'RELIANCE', current: '13.3%', target: '10.0%', reason: 'Position size exceeds 10% threshold' },
+      { action: 'Increase', asset: 'Fixed Income', current: '8.0%', target: '15.0%', reason: 'Underweight vs strategic allocation' },
+      { action: 'Increase', asset: 'International Equity', current: '0%', target: '10.0%', reason: 'No international diversification' },
+      { action: 'Rebalance', asset: 'Financial Services', current: '28.5%', target: '22.0%', reason: 'Sector concentration above benchmark +6.4%' },
+    ],
+    drawdown_periods: [
+      { period: 'Mar 2020 (COVID)', peak: '₹2.15 Cr', trough: '₹1.48 Cr', drawdown: '-31.2%', recovery_days: 156 },
+      { period: 'Jun 2022 (Rate Hikes)', peak: '₹2.42 Cr', trough: '₹2.08 Cr', drawdown: '-14.0%', recovery_days: 98 },
+      { period: 'Current', peak: '₹2.56 Cr', trough: '₹2.48 Cr', drawdown: '-3.2%', recovery_days: 'Ongoing' },
+    ]
+  }
+
+  // Use real data if available, otherwise fallback to mock
+  const intelData = apiData ?? mockIntelligenceData
+  const isLoading = loading && !apiData
+
+  const handleRefresh = () => {
+    refresh()
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -120,7 +130,7 @@ export function PortfolioIntelligencePage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="max-w-2xl mx-auto"
           >
-            <Card variant="premium" padding="xl" className="text-center">
+            <Card variant="premium" padding="lg" className="text-center">
               <div className="mb-6">
                 <p className="text-caption text-text-muted uppercase tracking-widest font-semibold mb-2">Portfolio Health</p>
                 <div className="flex items-center justify-center gap-4 mb-4">
@@ -142,7 +152,7 @@ export function PortfolioIntelligencePage() {
                         stroke="url(#gradient)"
                         strokeWidth="8"
                         strokeLinecap="round"
-                        strokeDasharray={`${intelligenceData.healthScore / 100 * 339.3} 339.3`}
+                        strokeDasharray={`${intelData.health_score / 100 * 339.3} 339.3`}
                         className="transition-all duration-1000"
                       />
                       <defs>
@@ -154,13 +164,13 @@ export function PortfolioIntelligencePage() {
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div>
-                        <p className="font-heading text-5xl font-bold text-text-primary">{intelligenceData.healthScore}</p>
+                        <p className="font-heading text-5xl font-bold text-text-primary">{intelData.health_score}</p>
                         <p className="text-text-secondary text-sm">/ 100</p>
                       </div>
                     </div>
                   </div>
                 </div>
-                <Badge variant="green" size="lg" className="mb-4">{intelligenceData.healthLabel}</Badge>
+                <Badge variant="green" size="md" className="mb-4">{intelData.health_label}</Badge>
                 <p className="text-text-secondary max-w-md mx-auto">
                   Your portfolio is reasonably diversified, but technology exposure has increased.
                   Financial Services 28.5% • Oil & Gas 18.2% • IT 15.3%
@@ -177,6 +187,47 @@ export function PortfolioIntelligencePage() {
       {/* Main Intelligence Content */}
       <main className="px-6 lg:px-8 pb-16">
         <div className="max-w-[1400px] mx-auto space-y-12">
+          
+          {/* Error State */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-card-strong p-6 border border-red-400/30 rounded-xl"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-400/10">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-lg font-semibold text-red-400">Failed to load intelligence</h3>
+                    <p className="text-text-secondary text-sm">{error.userMessage || error.message}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleRefresh}>
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Loading State */}
+          {isLoading && !apiData && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-20"
+            >
+              <Loader2 className="w-10 h-10 text-blue-400 animate-spin mb-4" />
+              <p className="text-text-secondary text-lg">Analyzing your portfolio...</p>
+              <p className="text-text-muted text-sm mt-2">Running quantitative analysis on risk, correlation, and diversification</p>
+            </motion.div>
+          )}
+
           {/* Navigation */}
           <motion.nav
             initial={{ opacity: 0, y: 20 }}
@@ -229,34 +280,34 @@ export function PortfolioIntelligencePage() {
                     <Card variant="strong" padding="lg">
                       <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Diversification Score</h3>
                       <MetricGroup columns={1}>
-                        <Metric value={`${intelligenceData.diversification.score}/100`} label="Overall Score" size="lg" />
-                        <Metric value={intelligenceData.diversification.assets} label="Total Holdings" size="md" />
-                        <Metric value={intelligenceData.diversification.assetClasses} label="Asset Classes" size="md" />
-                        <Metric value={intelligenceData.diversification.sectors} label="Sectors" size="md" />
-                        <Metric value={intelligenceData.diversification.geographies} label="Geographies" size="md" />
+                        <Metric value={`${intelData.diversification.score}/100`} label="Overall Score" size="lg" />
+                        <Metric value={intelData.diversification.assets} label="Total Holdings" size="md" />
+                        <Metric value={intelData.diversification.asset_classes} label="Asset Classes" size="md" />
+                        <Metric value={intelData.diversification.sectors} label="Sectors" size="md" />
+                        <Metric value={intelData.diversification.geographies} label="Geographies" size="md" />
                       </MetricGroup>
                     </Card>
 
                     <Card variant="strong" padding="lg">
                       <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Concentration Risk</h3>
                       <MetricGroup columns={1}>
-                        <Metric value={intelligenceData.concentration.top5} label="Top 5 Holdings" size="lg" suffix="%" />
-                        <Metric value={intelligenceData.concentration.top10} label="Top 10 Holdings" size="md" suffix="%" />
-                        <Metric value={intelligenceData.concentration.hhi.toFixed(3)} label="HHI Index" size="md" />
-                        <Metric value={intelligenceData.concentration.largestPosition.weight} label="Largest Position" size="md" suffix="%" changeType="negative" />
-                        <p className="text-sm text-text-muted mt-2">{intelligenceData.concentration.largestPosition.symbol}</p>
+                        <Metric value={intelData.concentration.top5} label="Top 5 Holdings" size="lg" suffix="%" />
+                        <Metric value={intelData.concentration.top10} label="Top 10 Holdings" size="md" suffix="%" />
+                        <Metric value={intelData.concentration.hhi.toFixed(3)} label="HHI Index" size="md" />
+                        <Metric value={intelData.concentration.largest_position.weight} label="Largest Position" size="md" suffix="%" changeType="negative" />
+                        <p className="text-sm text-text-muted mt-2">{intelData.concentration.largest_position.symbol}</p>
                       </MetricGroup>
                     </Card>
 
                     <Card variant="strong" padding="lg">
                       <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Key Risk Metrics</h3>
                       <MetricGroup columns={2} gap="sm">
-                        <Metric value={intelligenceData.risk.portfolioVolatility} label="Volatility" size="md" suffix="%" />
-                        <Metric value={intelligenceData.risk.sharpe} label="Sharpe Ratio" size="md" />
-                        <Metric value={intelligenceData.risk.sortino} label="Sortino Ratio" size="md" />
-                        <Metric value={intelligenceData.risk.maxDrawdown} label="Max Drawdown" size="md" suffix="%" changeType="negative" />
-                        <Metric value={intelligenceData.risk.beta} label="Beta" size="md" />
-                        <Metric value={intelligenceData.risk.alpha} label="Alpha" size="md" suffix="%" changeType="positive" />
+                        <Metric value={intelData.risk.portfolio_volatility} label="Volatility" size="md" suffix="%" />
+                        <Metric value={intelData.risk.sharpe} label="Sharpe Ratio" size="md" />
+                        <Metric value={intelData.risk.sortino} label="Sortino Ratio" size="md" />
+                        <Metric value={intelData.risk.max_drawdown} label="Max Drawdown" size="md" suffix="%" changeType="negative" />
+                        <Metric value={intelData.risk.beta} label="Beta" size="md" />
+                        <Metric value={intelData.risk.alpha} label="Alpha" size="md" suffix="%" changeType="positive" />
                       </MetricGroup>
                     </Card>
                   </motion.div>
@@ -293,18 +344,18 @@ export function PortfolioIntelligencePage() {
                     className="grid lg:grid-cols-4 gap-4 mb-8"
                   >
                     {[
-                      { label: 'Volatility', value: intelligenceData.risk.portfolioVolatility, suffix: '%' },
-                      { label: 'Sharpe', value: intelligenceData.risk.sharpe },
-                      { label: 'Sortino', value: intelligenceData.risk.sortino },
-                      { label: 'VaR 95%', value: intelligenceData.risk.var95, suffix: '%' },
-                      { label: 'CVaR 95%', value: intelligenceData.risk.cvar95, suffix: '%' },
-                      { label: 'Max DD', value: intelligenceData.risk.maxDrawdown, suffix: '%', changeType: 'negative' as const },
-                      { label: 'Current DD', value: intelligenceData.risk.currentDrawdown, suffix: '%', changeType: 'negative' as const },
-                      { label: 'Beta', value: intelligenceData.risk.beta },
-                      { label: 'Alpha', value: intelligenceData.risk.alpha, suffix: '%', changeType: 'positive' as const },
-                      { label: 'Tracking Error', value: intelligenceData.risk.trackingError, suffix: '%' },
-                      { label: 'Calmar', value: intelligenceData.risk.calmar },
-                      { label: 'Ulcer Index', value: intelligenceData.risk.ulcerIndex, suffix: '%' },
+                      { label: 'Volatility', value: intelData.risk.portfolio_volatility, suffix: '%' },
+                      { label: 'Sharpe', value: intelData.risk.sharpe },
+                      { label: 'Sortino', value: intelData.risk.sortino },
+                      { label: 'VaR 95%', value: intelData.risk.var95, suffix: '%' },
+                      { label: 'CVaR 95%', value: intelData.risk.cvar95, suffix: '%' },
+                      { label: 'Max DD', value: intelData.risk.max_drawdown, suffix: '%', changeType: 'negative' as const },
+                      { label: 'Current DD', value: intelData.risk.current_drawdown, suffix: '%', changeType: 'negative' as const },
+                      { label: 'Beta', value: intelData.risk.beta },
+                      { label: 'Alpha', value: intelData.risk.alpha, suffix: '%', changeType: 'positive' as const },
+                      { label: 'Tracking Error', value: intelData.risk.tracking_error, suffix: '%' },
+                      { label: 'Calmar', value: intelData.risk.calmar },
+                      { label: 'Ulcer Index', value: intelData.risk.ulcer_index, suffix: '%' },
                     ].map((metric) => (
                       <Card key={metric.label} variant="default" padding="md" className="text-center">
                         <p className="text-caption text-text-muted uppercase tracking-wider mb-1">{metric.label}</p>
@@ -341,7 +392,7 @@ export function PortfolioIntelligencePage() {
                     <Card variant="strong" padding="lg">
                       <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Sector Concentration vs Benchmark</h3>
                       <div className="space-y-3 max-h-96 overflow-y-auto">
-                        {intelligenceData.sectorConcentration.map((sector) => (
+                        {intelData.sector_concentration.map((sector) => (
                           <div key={sector.sector} className="p-3 bg-bg-glass rounded-xl">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-3">
@@ -372,7 +423,7 @@ export function PortfolioIntelligencePage() {
                     <Card variant="strong" padding="lg">
                       <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Currency Exposure</h3>
                       <div className="space-y-3">
-                        {intelligenceData.currencyExposure.map((curr) => (
+                        {intelData.currency_exposure.map((curr) => (
                           <div key={curr.currency} className="flex items-center justify-between gap-4 p-3 bg-bg-glass rounded-xl">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-lg bg-bg-tertiary flex items-center justify-center text-sm font-medium">{curr.currency}</div>
@@ -398,11 +449,11 @@ export function PortfolioIntelligencePage() {
                     <div className="overflow-x-auto">
                       <ReportTable
                         headers={['Fund 1', 'Fund 2', 'Overlap %', 'Shared Holdings', 'Action']}
-                        rows={intelligenceData.etfOverlap.map(e => [
+                        rows={intelData.etf_overlap.map(e => [
                           e.fund1,
                           e.fund2,
                           <span className={cn('font-mono font-medium', parseInt(e.overlap) > 60 ? 'text-red-400' : parseInt(e.overlap) > 40 ? 'text-amber-400' : 'text-green-400')}>{e.overlap}</span>,
-                          e.sharedHoldings.toString(),
+                          e.shared_holdings.toString(),
                           <Button variant="ghost" size="sm">Analyze</Button>
                         ])}
                       />
@@ -420,15 +471,15 @@ export function PortfolioIntelligencePage() {
                         <thead>
                           <tr className="border-b border-white/10">
                             <th className="px-4 py-3 font-heading font-medium text-white/90 tracking-wider sticky left-0 bg-bg-primary z-10"></th>
-                            {intelligenceData.correlationMatrix.assets.map((asset) => (
+                            {intelData.correlation_matrix.assets.map((asset) => (
                               <th key={asset} className="px-4 py-3 font-heading font-medium text-white/90 tracking-wider text-center">{asset}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {intelligenceData.correlationMatrix.matrix.map((row, i) => (
+                          {intelData.correlation_matrix.matrix.map((row, i) => (
                             <tr key={i} className="border-b border-white/5">
-                              <td className="px-4 py-3 font-medium text-white/80 sticky left-0 bg-bg-primary z-10">{intelligenceData.correlationMatrix.assets[i]}</td>
+                              <td className="px-4 py-3 font-medium text-white/80 sticky left-0 bg-bg-primary z-10">{intelData.correlation_matrix.assets[i]}</td>
                               {row.map((val, j) => (
                                 <td key={j} className="px-4 py-3 text-center">
                                   <span className={cn(
@@ -459,7 +510,7 @@ export function PortfolioIntelligencePage() {
                     transition={{ duration: 0.5 }}
                     className="space-y-4"
                   >
-                    {intelligenceData.rebalancing.map((action, i) => (
+                    {intelData.rebalancing.map((action, i) => (
                       <Card key={i} variant="strong" padding="lg" className={cn('border-l-4', action.action === 'Reduce' && 'border-red-400', action.action === 'Increase' && 'border-green-400', action.action === 'Rebalance' && 'border-blue-400')}>
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="flex items-center gap-4">
@@ -518,12 +569,12 @@ export function PortfolioIntelligencePage() {
                       <div className="overflow-x-auto">
                         <ReportTable
                           headers={['Period', 'Peak Value', 'Trough Value', 'Drawdown', 'Recovery (days)']}
-                          rows={intelligenceData.drawdownPeriods.map(d => [
+                          rows={intelData.drawdown_periods.map(d => [
                             d.period,
                             d.peak,
                             d.trough,
                             <span className="font-mono font-medium text-red-400">{d.drawdown}</span>,
-                            d.recoveryDays.toString(),
+                            d.recovery_days.toString(),
                           ])}
                         />
                       </div>

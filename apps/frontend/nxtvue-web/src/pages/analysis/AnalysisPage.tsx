@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ReportTable } from '@/components/charts/ChartContainer'
+import { AnalysisForm } from '@/components/analysis/AnalysisForm'
+import { AnalysisProgress } from '@/components/analysis/AnalysisProgress'
+import { ReportViewer } from '@/components/analysis/ReportViewer'
+import { useAnalysis } from '@/hooks/useAnalysis'
 
 // Rich 13-section analytical datasets matching frontend/results.tsx depth
 const reportDatasets: Record<string, any> = {
@@ -341,8 +345,19 @@ const reportDatasets: Record<string, any> = {
 const defaultAssetKey = 'AAPL'
 
 export function AnalysisPage() {
-  const { asset } = useParams<{ asset?: string }>()
-  const selectedKey = asset?.toUpperCase() || defaultAssetKey
+  const { ticker: tickerParam } = useParams<{ ticker?: string }>()
+
+  // Parse TICKER:market format from URL param
+  const [defaultTicker, defaultMarket] = React.useMemo(() => {
+    if (!tickerParam) return ['', 'india']
+    const parts = tickerParam.split(':')
+    return [parts[0].toUpperCase(), (parts[1]?.toLowerCase() === 'us' ? 'us' : 'india')]
+  }, [tickerParam])
+
+  const { status, message, progress, result, error, run, reset } = useAnalysis()
+
+  // Fall back to hardcoded demo data when no real analysis has been run
+  const selectedKey = (result?.ticker || tickerParam?.split(':')[0] || defaultAssetKey).toUpperCase()
   const report = reportDatasets[selectedKey] || reportDatasets['AAPL']
 
   const [isChatOpen, setIsChatOpen] = useState(false)
@@ -476,6 +491,48 @@ export function AnalysisPage() {
           className="order-2 md:order-1 w-full md:w-[60%] lg:w-[55%] pointer-events-auto bg-black/60 md:bg-black/40 backdrop-blur-xl border-t md:border-t-0 md:border-r border-white/10 pt-6 pb-[48px] px-6 sm:px-10 md:px-16 custom-report-scrollbar shadow-2xl"
         >
           <div className="max-w-4xl mx-auto">
+
+            {/* ── Live Analysis Form ─────────────────────────────────── */}
+            <div className="mb-8">
+              <AnalysisForm
+                onSubmit={run}
+                loading={status === 'fetching' || status === 'analyzing'}
+                defaultTicker={defaultTicker}
+                defaultMarket={defaultMarket}
+              />
+              {status !== 'idle' && (
+                <div className="mt-4">
+                  <AnalysisProgress
+                    status={status}
+                    message={message}
+                    progress={progress}
+                    className="bg-black/40 border border-white/10 text-white"
+                  />
+                </div>
+              )}
+              {status === 'complete' && result && (
+                <div className="mt-6">
+                  <ReportViewer
+                    finalMemo={result.final_memo}
+                    pdfFilename={result.ticker.toUpperCase() + '.pdf'}
+                    className="text-white"
+                  />
+                  <button
+                    onClick={reset}
+                    className="mt-4 text-xs text-white/50 hover:text-white/80 underline underline-offset-2 transition-colors"
+                  >
+                    ← Run a new analysis
+                  </button>
+                </div>
+              )}
+              {status === 'error' && (
+                <div className="mt-4 p-4 rounded-xl bg-red-900/30 border border-red-500/30 text-red-300 text-sm">
+                  <strong>Analysis failed:</strong> {error?.userMessage || error?.message}
+                  <button onClick={reset} className="ml-3 underline text-red-300/70 hover:text-red-200">Reset</button>
+                </div>
+              )}
+            </div>
+            {/* ── End Live Analysis Form ─────────────────────────────── */}
 
             {/* File Reference Badge + View Previous Reports — same row */}
             <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">

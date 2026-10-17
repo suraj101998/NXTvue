@@ -52,7 +52,7 @@ interface TabsListProps extends HTMLAttributes<HTMLDivElement> {
 
 export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(
   ({ className, children, ...props }, ref) => {
-    const { variant } = useTabsContext()
+    const { variant = 'default' } = useTabsContext()
 
     const variants = {
       default: 'bg-bg-glass backdrop-blur-md rounded-xl p-1',
@@ -65,7 +65,7 @@ export const TabsList = forwardRef<HTMLDivElement, TabsListProps>(
         ref={ref}
         role="tablist"
         aria-orientation="horizontal"
-        className={cn('flex gap-1', variants[variant], className)}
+        className={cn('flex gap-1', variants[variant || 'default'], className)}
         {...props}
       >
         {children}
@@ -83,14 +83,14 @@ interface TabsTriggerProps extends HTMLAttributes<HTMLButtonElement> {
 
 export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
   ({ className, value, disabled, children, ...props }, ref) => {
-    const { currentValue, onChange, variant } = useTabsContext()
+    const { currentValue, onChange, variant = 'default' } = useTabsContext()
     const isActive = currentValue === value
 
     const variants = {
       default: cn(
         'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
         isActive
-          ? 'bg-white text-text-primary shadow-md'
+          ? 'bg-white text-gray-900 shadow-md'
           : 'text-text-secondary hover:text-text-primary hover:bg-bg-card-hover'
       ),
       pills: cn(
@@ -118,7 +118,7 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
         tabIndex={isActive ? 0 : -1}
         onClick={() => !disabled && onChange(value)}
         disabled={disabled}
-        className={cn(variants[variant], disabled && 'opacity-50 cursor-not-allowed', className)}
+        className={cn(variants[variant || 'default'], disabled && 'opacity-50 cursor-not-allowed', className)}
         {...props}
       >
         {children}

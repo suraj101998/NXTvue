@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/utils/cn'
-import { ChevronDown, X } from 'lucide-react'
 
 interface DropdownProps {
   trigger: ReactNode
@@ -10,9 +9,9 @@ interface DropdownProps {
   offset?: number
 }
 
-export function Dropdown({ trigger, content, align = 'right', offset = 8 }: DropdownProps) {
+export function Dropdown({ trigger, content, align = 'right' }: DropdownProps) {
   const [open, setOpen] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Metric, MetricGroup } from '@/components/ui/Metric'
 import { AIInsight } from '@/components/ui/AIInsight'
 import { ReportTable } from '@/components/charts/ChartContainer'
 import { EmptyStateWithAction } from '@/components/feedback/EmptyState'
-import { cn } from '@/utils/cn'
-import { Plus, TrendingUp, TrendingDown, Target, BarChart3, Zap, Search, X, Download } from 'lucide-react'
+import { Plus, Zap, Search, X, Download } from 'lucide-react'
+import { AnalysisProgress } from '@/components/analysis/AnalysisProgress'
+import { ReportViewer } from '@/components/analysis/ReportViewer'
+import { useCompare } from '@/hooks/useCompare'
 
 const availableAssets = [
   { symbol: 'RELIANCE', name: 'Reliance Industries', type: 'Equity', price: '2,745.30', change: '+1.84%', nxtvueScore: 84 },
@@ -45,17 +46,23 @@ const comparisonData = {
   ]
 }
 
+// Market mapping: default to india; add :us suffix for known US symbols
+function assetMarket(symbol: string): string {
+  const us = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'AMD', 'INTC']
+  return us.includes(symbol.toUpperCase()) ? 'us' : 'india'
+}
+
 export function ComparePage() {
-  const [selectedAssets, setSelectedAssets] = useState<string[]>(['RELIANCE', 'TCS', 'HDFCBANK'])
+  const [selectedAssets, setSelectedAssets] = useState<string[]>(['RELIANCE', 'TCS'])
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [compareYear, setCompareYear] = useState(2026)
+  const { status, message, progress, result, error, run: runCompare, reset: resetCompare } = useCompare()
 
   const filteredAssets = availableAssets.filter(a =>
     a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     a.symbol.toLowerCase().includes(searchQuery.toLowerCase())
   )
-
-  const selectedData = selectedAssets.map(s => availableAssets.find(a => a.symbol === s)).filter(Boolean)
 
   const toggleAsset = (symbol: string) => {
     setSelectedAssets(prev =>
@@ -65,21 +72,6 @@ export function ComparePage() {
         ? [...prev, symbol]
         : prev
     )
-  }
-
-  const getMetricColor = (value: string, metric: string) => {
-    if (metric.includes('Return') || metric.includes('CAGR') || metric.includes('ROE') || metric.includes('ROCE') || metric.includes('Sharpe') || metric.includes('NXTvue')) {
-      return value.startsWith('+') || value.startsWith('8') || value.startsWith('9') ? 'text-green-400' : 'text-red-400'
-    }
-    if (metric.includes('Drawdown') || metric.includes('Volatility') || metric.includes('Risk') || metric.includes('Debt') || metric.includes('Beta')) {
-      const num = parseFloat(value.replace(/[%,x]/g, ''))
-      return num > 20 || num > 1.2 ? 'text-red-400' : num > 10 || num > 1 ? 'text-amber-400' : 'text-green-400'
-    }
-    if (metric.includes('P/E') || metric.includes('P/B')) {
-      const num = parseFloat(value.replace(/[x]/g, ''))
-      return num > 30 ? 'text-red-400' : num > 20 ? 'text-amber-400' : 'text-green-400'
-    }
-    return 'text-white'
   }
 
   return (
@@ -314,19 +306,85 @@ export function ComparePage() {
               </div>
             </motion.section>
 
-            {/* Action Buttons */}
+            {/* Run Comparison / Results */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
-              className="flex flex-wrap gap-4"
+              className="space-y-6"
             >
-              <Button variant="primary" className="gap-2">
-                <Download className="w-4 h-4" />
-                Generate Comparison Report
-              </Button>
-              <Button variant="secondary">Save Comparison</Button>
-              <Button variant="outline">Share</Button>
+              {/* Year selector + Run button */}
+              {status === 'idle' && (
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-text-secondary">Projection year:</label>
+                    <select
+                      value={compareYear}
+                      onChange={(e) => setCompareYear(Number(e.target.value))}
+                      className="bg-bg-tertiary border border-border-subtle rounded-lg px-3 py-1.5 text-text-primary text-sm focus:outline-none focus:border-blue-400"
+                    >
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                      <option value={2027}>2027</option>
+                    </select>
+                  </div>
+                  <Button
+                    variant="primary"
+                    className="gap-2"
+                    onClick={() => {
+                      if (selectedAssets.length < 2) return
+                      const [a, b] = selectedAssets
+                      runCompare(a, assetMarket(a), b, assetMarket(b), compareYear)
+                    }}
+                    disabled={selectedAssets.length < 2}
+                  >
+                    <Zap className="w-4 h-4" />
+                    Run AI Comparison
+                  </Button>
+                  <Button variant="secondary" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Export Mock Data
+                  </Button>
+                </div>
+              )}
+
+              {/* Progress while running */}
+              {(status === 'fetching' || status === 'analyzing') && (
+                <AnalysisProgress
+                  status={status}
+                  message={message}
+                  progress={progress}
+                />
+              )}
+
+              {/* Error */}
+              {status === 'error' && (
+                <div className="glass-card-strong p-6 border border-red-400/30 rounded-xl">
+                  <p className="text-red-400 font-medium mb-2">Comparison failed</p>
+                  <p className="text-text-secondary text-sm">{error?.userMessage || error?.message}</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={resetCompare}>
+                    Try Again
+                  </Button>
+                </div>
+              )}
+
+              {/* Report */}
+              {status === 'complete' && result && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-heading text-2xl font-semibold text-text-primary">AI Comparison Report</h2>
+                    <Button variant="ghost" size="sm" onClick={resetCompare}>Reset</Button>
+                  </div>
+                  <ReportViewer
+                    finalMemo={result.final_memo}
+                  />
+                </div>
+              )}
+
+              {/* Show reset when complete and not in report view */}
+              {status !== 'idle' && status !== 'fetching' && status !== 'analyzing' && (
+                <></>
+              )}
             </motion.div>
           </div>
         </main>

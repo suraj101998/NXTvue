@@ -1,62 +1,81 @@
-import { HTMLAttributes } from 'react'
+import { HTMLAttributes, ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/Button'
-import { Search, Plus, FolderOpen, BarChart3, Users, Shield } from 'lucide-react'
+import { Search, FolderOpen, BarChart3, Users, Bell, History, LucideIcon } from 'lucide-react'
 
 interface EmptyStateProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'portfolio' | 'watchlist' | 'analysis' | 'search' | 'compare'
+  variant?: 'default' | 'portfolio' | 'watchlist' | 'analysis' | 'search' | 'compare' | 'notifications' | 'history'
   title?: string
   description?: string
-  action?: React.ReactNode
-  icon?: any
+  action?: ReactNode
+  icon?: LucideIcon
 }
 
 const variantConfigs = {
   default: {
     icon: FolderOpen,
     title: 'Nothing here yet',
-    description: 'Get started by adding your first item.',
+    description: 'Get started by creating or adding your first item.',
   },
   portfolio: {
     icon: BarChart3,
-    title: 'No Portfolio Yet',
-    description: 'Your portfolio is ready for its first insight. Add an investment to begin.',
+    title: 'No Portfolio Loaded',
+    description: 'Upload your holdings spreadsheet (.xlsx/.csv) or start with demo holdings to view analytics.',
   },
   watchlist: {
     icon: Search,
-    title: 'No Watchlist',
-    description: 'Nothing here yet. Save investments you want NXTvue to monitor.',
+    title: 'Your Watchlist is Empty',
+    description: 'Save stocks, ETFs, and funds you want NXTvue to monitor in real-time.',
   },
   analysis: {
     icon: BarChart3,
-    title: 'No Analysis',
-    description: 'Search for an investment to begin your analysis.',
+    title: 'No Active Analysis',
+    description: 'Enter a ticker symbol above to run a deep institutional quantitative analysis.',
   },
   search: {
     icon: Search,
     title: 'No Results Found',
-    description: 'Try adjusting your search terms or filters.',
+    description: 'Try searching by company name, NSE/BSE symbol, or US ticker (e.g. RELIANCE, NVDA).',
   },
   compare: {
     icon: Users,
-    title: 'Select Investments to Compare',
-    description: 'Choose two or more investments to see a side-by-side comparison.',
+    title: 'Select Assets to Compare',
+    description: 'Choose two stocks or ETFs to see a side-by-side valuation and risk comparison.',
+  },
+  notifications: {
+    icon: Bell,
+    title: "You're All Caught Up",
+    description: 'No new alerts or notifications. Important market movements and reports will appear here.',
+  },
+  history: {
+    icon: History,
+    title: 'No Analysis History',
+    description: 'Reports and comparative valuations you generate will be automatically saved here.',
   },
 }
 
-export function EmptyState({ className, variant = 'default', title, description, action, icon, ...props }: EmptyStateProps) {
+export function EmptyState({
+  className,
+  variant = 'default',
+  title,
+  description,
+  action,
+  icon,
+  ...props
+}: EmptyStateProps) {
   const config = variantConfigs[variant]
   const Icon = icon || config.icon
 
   return (
     <div className={cn('flex flex-col items-center justify-center text-center py-16 px-6', className)} {...props}>
-      <div className="w-16 h-16 rounded-2xl bg-bg-glass border border-border-subtle flex items-center justify-center mb-6 text-text-muted">
-        <Icon className="w-8 h-8" />
+      <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-5 text-blue-400 shadow-inner">
+        <Icon className="w-7 h-7" />
       </div>
-      <h3 className="font-heading text-xl font-semibold text-text-primary mb-2">
+      <h3 className="font-heading text-lg font-semibold text-text-primary mb-2">
         {title || config.title}
       </h3>
-      <p className="text-text-secondary max-w-sm mb-6">
+      <p className="text-text-secondary text-sm max-w-sm mb-6 leading-relaxed">
         {description || config.description}
       </p>
       {action && (
@@ -68,18 +87,30 @@ export function EmptyState({ className, variant = 'default', title, description,
   )
 }
 
-export function EmptyStateWithAction({ variant = 'default', actionLabel, actionHref, actionOnClick, ...props }: EmptyStateProps & { actionLabel?: string; actionHref?: string; actionOnClick?: () => void }) {
+export function EmptyStateWithAction({
+  variant = 'default',
+  actionLabel,
+  actionHref,
+  actionOnClick,
+  ...props
+}: EmptyStateProps & { actionLabel?: string; actionHref?: string; actionOnClick?: () => void }) {
   return (
-    <EmptyState variant={variant} {...props}>
-      {(actionLabel || actionHref || actionOnClick) && (
-        <Button
-          variant="primary"
-          onClick={actionOnClick}
-          asChild={!!actionHref}
-        >
-          {actionHref ? <a href={actionHref}>{actionLabel || 'Get Started'}</a> : actionLabel || 'Get Started'}
-        </Button>
-      )}
-    </EmptyState>
+    <EmptyState
+      variant={variant}
+      action={
+        (actionLabel || actionHref || actionOnClick) && (
+          actionHref ? (
+            <Button variant="primary" asChild>
+              <Link to={actionHref}>{actionLabel || 'Get Started'}</Link>
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={actionOnClick}>
+              {actionLabel || 'Get Started'}
+            </Button>
+          )
+        )
+      }
+      {...props}
+    />
   )
 }

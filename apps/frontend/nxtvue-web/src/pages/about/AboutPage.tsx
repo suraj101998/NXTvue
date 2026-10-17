@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { cn } from '@/utils/cn'
-import { ArrowRight, Sparkles, Target, Zap, Shield, BarChart3, Brain, Users, Globe, Award, BookOpen, Lightbulb } from 'lucide-react'
+import { ArrowRight, Target, Zap, Shield, BarChart3, Brain, Users, Globe, BookOpen, Lightbulb } from 'lucide-react'
 
 export function AboutPage() {
   const maskContainerRef = useRef<HTMLDivElement>(null)
@@ -92,10 +91,22 @@ export function AboutPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let particles: any[] = []
+    interface IParticle {
+      x: number
+      y: number
+      size: number
+      speedX: number
+      speedY: number
+      opacity: number
+      update: () => void
+      draw: () => void
+    }
+
+    let particles: IParticle[] = []
     const particleCount = window.innerWidth < 768 ? 25 : 50
 
     function resizeCanvas() {
+      if (!canvas) return
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
     }
@@ -103,10 +114,19 @@ export function AboutPage() {
     window.addEventListener('resize', resizeCanvas)
     resizeCanvas()
 
-    class Particle {
+    class ParticleImpl implements IParticle {
+      x: number
+      y: number
+      size: number
+      speedX: number
+      speedY: number
+      opacity: number
+
       constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
+        const w = canvas ? canvas.width : window.innerWidth
+        const h = canvas ? canvas.height : window.innerHeight
+        this.x = Math.random() * w
+        this.y = Math.random() * h
         this.size = Math.random() * 1.5 + 0.5
         this.speedX = Math.random() * 0.4 - 0.2
         this.speedY = Math.random() * -0.6 - 0.1
@@ -114,18 +134,21 @@ export function AboutPage() {
       }
 
       update() {
+        const w = canvas ? canvas.width : window.innerWidth
+        const h = canvas ? canvas.height : window.innerHeight
         this.x += this.speedX
         this.y += this.speedY
 
         if (this.y < 0) {
-          this.y = canvas.height
-          this.x = Math.random() * canvas.width
+          this.y = h
+          this.x = Math.random() * w
         }
-        if (this.x > canvas.width) this.x = 0
-        if (this.x < 0) this.x = canvas.width
+        if (this.x > w) this.x = 0
+        if (this.x < 0) this.x = w
       }
 
       draw() {
+        if (!ctx) return
         ctx.beginPath()
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(0, 255, 157, ${this.opacity})`
@@ -139,11 +162,12 @@ export function AboutPage() {
     function initParticles() {
       particles = []
       for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle())
+        particles.push(new ParticleImpl())
       }
     }
 
     function animateParticles() {
+      if (!ctx || !canvas) return
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       for (let i = 0; i < particles.length; i++) {
         particles[i].update()
@@ -217,7 +241,7 @@ export function AboutPage() {
         className="fixed inset-0 w-full h-full z-10 pointer-events-none"
         style={{
           maskImage: `radial-gradient(circle ${spotlightRadius}px at ${currentX}px ${currentY}px, black 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 70%, transparent 100%)`,
-          webkitMaskImage: `radial-gradient(circle ${spotlightRadius}px at ${currentX}px ${currentY}px, black 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 70%, transparent 100%)`,
+          WebkitMaskImage: `radial-gradient(circle ${spotlightRadius}px at ${currentX}px ${currentY}px, black 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 70%, transparent 100%)`,
         }}
       >
         <img
@@ -516,7 +540,7 @@ export function AboutPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Card variant="premium" padding="xl" className="max-w-3xl mx-auto">
+            <Card variant="premium" padding="lg" className="max-w-3xl mx-auto">
               <h2 className="font-heading text-3xl md:text-4xl font-bold text-white mb-6">Ready to Experience Institutional Intelligence?</h2>
               <p className="text-white/60 text-lg mb-8">Join thousands of investors who trust NXTvue for their investment decisions.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Metric, MetricGroup } from '@/components/ui/Metric'
@@ -8,78 +8,134 @@ import { Badge } from '@/components/ui/Badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { ReportTable } from '@/components/charts/ChartContainer'
 import { cn } from '@/utils/cn'
-import { ArrowRight, TrendingUp, TrendingDown, BarChart3, PieChart, Target, Zap, RefreshCw, Download, Search, Plus } from 'lucide-react'
+import { ArrowRight, BarChart3, Download, Search, RefreshCw } from 'lucide-react'
+import { FileUploadInput } from '@/components/forms/FileUploadInput'
+import { AnalysisProgress } from '@/components/analysis/AnalysisProgress'
+import { ReportViewer } from '@/components/analysis/ReportViewer'
+import { usePortfolio } from '@/hooks/usePortfolio'
+import { formatCurrency, formatPercent } from '@/hooks/usePortfolioHoldings'
+import { SkeletonTable } from '@/components/feedback/LoadingSkeleton'
+import { EmptyState } from '@/components/feedback/EmptyState'
+import { useIndMoneyPortfolio } from '@/hooks/useIndMoneyPortfolio'
+import { useIndMoneyWatchlist } from '@/hooks/useIndMoneyWatchlist'
 
-const portfolioData = {
-  totalValue: '₹2.48 Cr',
-  investedValue: '₹1.95 Cr',
-  pnl: '₹0.53 Cr',
-  pnlPercent: '+27.2%',
-  xirr: '18.4%',
-  dayChange: '+₹1.24L (+0.5%)',
-  holdings: [
-    { symbol: 'RELIANCE', name: 'Reliance Industries', type: 'Equity', qty: 120, avgPrice: '2,450', currentPrice: '2,745', value: '₹3.29L', pnl: '+12.0%', weight: '13.3%' },
-    { symbol: 'TCS', name: 'TCS', type: 'Equity', qty: 45, avgPrice: '3,680', currentPrice: '4,121', value: '₹1.85L', pnl: '+12.0%', weight: '7.5%' },
-    { symbol: 'HDFCBANK', name: 'HDFC Bank', type: 'Equity', qty: 180, avgPrice: '1,520', currentPrice: '1,680', value: '₹3.02L', pnl: '+10.5%', weight: '12.2%' },
-    { symbol: 'ICICIBANK', name: 'ICICI Bank', type: 'Equity', qty: 200, avgPrice: '980', currentPrice: '1,121', value: '₹2.24L', pnl: '+14.4%', weight: '9.0%' },
-    { symbol: 'BAJFINANCE', name: 'Bajaj Finance', type: 'Equity', qty: 25, avgPrice: '6,200', currentPrice: '7,245', value: '₹1.81L', pnl: '+16.8%', weight: '7.3%' },
-    { symbol: 'HDFCAMC', name: 'HDFC Top 100 Fund', type: 'Mutual Fund', qty: 8500, avgPrice: '580', currentPrice: '680', value: '₹57.8L', pnl: '+17.2%', weight: '2.3%' },
-    { symbol: 'PARAGPAR', name: 'Parag Parikh Flexi Cap', type: 'Mutual Fund', qty: 12000, avgPrice: '420', currentPrice: '510', value: '₹61.2L', pnl: '+21.4%', weight: '2.5%' },
-    { symbol: 'GOVT10Y', name: '10Y G-Sec Bond', type: 'Fixed Income', qty: 50, avgPrice: '10,200', currentPrice: '10,150', value: '₹5.07L', pnl: '-0.5%', weight: '2.0%' },
-  ],
-  allocation: [
-    { name: 'Equities', value: '62%', color: 'bg-blue-400', amount: '₹1.54 Cr' },
-    { name: 'Mutual Funds', value: '28%', color: 'bg-indigo-400', amount: '₹69.5 L' },
-    { name: 'Fixed Income', value: '8%', color: 'bg-green-400', amount: '₹19.8 L' },
-    { name: 'Cash & Equivalents', value: '2%', color: 'bg-amber-400', amount: '₹4.9 L' },
-  ],
-  sectorAllocation: [
-    { sector: 'Financial Services', weight: '28.5%', color: 'bg-blue-400' },
-    { sector: 'Oil & Gas', weight: '18.2%', color: 'bg-amber-400' },
-    { sector: 'Information Technology', weight: '15.3%', color: 'bg-indigo-400' },
-    { sector: 'Consumer Goods', weight: '12.1%', color: 'bg-green-400' },
-    { sector: 'Pharmaceuticals', weight: '8.7%', color: 'bg-purple-400' },
-    { sector: 'Automobile', weight: '6.4%', color: 'bg-pink-400' },
-    { sector: 'Others', weight: '10.8%', color: 'bg-gray-400' },
-  ],
-  performance: [
-    { period: '1D', portfolio: '+0.5%', benchmark: '+0.4%', excess: '+0.1%' },
-    { period: '1W', portfolio: '+2.1%', benchmark: '+1.8%', excess: '+0.3%' },
-    { period: '1M', portfolio: '+5.8%', benchmark: '+4.2%', excess: '+1.6%' },
-    { period: '3M', portfolio: '+12.4%', benchmark: '+9.8%', excess: '+2.6%' },
-    { period: '6M', portfolio: '+18.7%', benchmark: '+14.5%', excess: '+4.2%' },
-    { period: '1Y', portfolio: '+27.2%', benchmark: '+21.3%', excess: '+5.9%' },
-    { period: '3Y', portfolio: '+48.5%', benchmark: '+38.2%', excess: '+10.3%' },
-    { period: '5Y', portfolio: '+112.3%', benchmark: '+85.7%', excess: '+26.6%' },
-  ]
+// Asset-type colour map
+const ASSET_COLORS: Record<string, string> = {
+  MF: 'bg-blue-400',
+  EPF: 'bg-violet-400',
+  GOLD: 'bg-yellow-400',
+  STOCK: 'bg-green-400',
+  PRIVATE_EQUITY: 'bg-pink-400',
+  BOND: 'bg-slate-400',
+  FD: 'bg-cyan-400',
+  SA: 'bg-sky-400',
+  SILVER: 'bg-gray-300',
+  CRYPTO: 'bg-orange-400',
 }
 
 export function PortfolioPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'holdings' | 'performance' | 'allocation'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'holdings' | 'watchlist' | 'allocation' | 'ai-analysis'>('overview')
   const [showVideo, setShowVideo] = useState(true)
+  const [holdingsTab, setHoldingsTab] = useState<'stocks' | 'mf' | 'bonds' | 'fd'>('stocks')
+  const [portfolioYear, setPortfolioYear] = useState(2026)
   const videoRef = useRef<HTMLVideoElement>(null)
 
+  // Live INDmoney data
+  const { snapshot, holdings, loading: holdingsLoading, retrying, retryAttempt, error: holdingsError, refresh: refreshAll } = useIndMoneyPortfolio()
+  const { watchlists, loading: watchlistLoading, error: watchlistError, refresh: refreshWatchlist } = useIndMoneyWatchlist()
+
+  // AI analysis hook
+  const { status: pfStatus, message: pfMessage, progress: pfProgress, result: pfResult, error: pfError, runWithFile, runDefault, reset: resetPortfolio } = usePortfolio()
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowVideo(false)
-    }, 3000)
+    const timer = setTimeout(() => setShowVideo(false), 3000)
     return () => clearTimeout(timer)
   }, [])
 
-  const handleVideoEnded = () => {
-    setShowVideo(false)
-  }
+  const handleVideoEnded = () => setShowVideo(false)
+
+  // ── Derived summary from snapshot ──────────────────────────────────────────
+  const totalValue    = snapshot?.total_current_value ?? 0
+  const totalInvested = snapshot?.total_invested ?? 0
+  const totalNetworth = snapshot?.total_networth ?? 0
+  const totalPnl      = totalValue - totalInvested
+  const totalPnlPct   = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0
+  const liabilities   = snapshot?.liabilities?.total ?? 0
+  const todayChange   =
+    (holdings?.ind_stocks.asset_summary.one_day_change ?? 0) +
+    (holdings?.mutual_funds.asset_summary.one_day_change ?? 0)
+
+  // ── Asset allocation rows from snapshot.investments ────────────────────────
+  const allocationRows = (snapshot?.investments ?? [])
+    .filter((i) => i.current_value > 0)
+    .sort((a, b) => b.current_value - a.current_value)
+    .map((i) => ({
+      name: i.asset_type,
+      current: i.current_value,
+      invested: i.invested_value,
+      pnl: i.return_,
+      pnlPct: i.return_percentage,
+      pct: i.progress_value_percentage,
+      color: ASSET_COLORS[i.asset_type] ?? 'bg-indigo-400',
+    }))
+
+  // ── Asset class rows from snapshot.assets ──────────────────────────────────
+  const assetClassRows = (snapshot?.assets ?? [])
+    .filter((a) => a.current_value > 0)
+    .sort((a, b) => b.current_value - a.current_value)
+
+  // ── Holdings tables ────────────────────────────────────────────────────────
+  const stockRows = (holdings?.ind_stocks.holdings ?? []).map((h) => ({
+    name: h.investment,
+    units: h.total_units ?? '—',
+    unitPrice: h.unit_price != null ? `₹${h.unit_price.toLocaleString('en-IN')}` : '—',
+    invested: formatCurrency(h.invested_amount),
+    current: formatCurrency(h.market_value),
+    pnl: h.total_pnl,
+    pnlPct: h.pnl_per,
+    oneDay: h.one_day_change,
+    oneDayPct: h.one_day_change_percentage,
+    broker: h.broker ?? '—',
+  }))
+
+  const mfRows = (holdings?.mutual_funds.holdings ?? []).map((h) => ({
+    name: h.investment,
+    units: h.total_units != null ? h.total_units.toLocaleString('en-IN') : '—',
+    nav: h.unit_price != null ? `₹${h.unit_price.toFixed(3)}` : '—',
+    invested: formatCurrency(h.invested_amount),
+    current: formatCurrency(h.market_value),
+    pnl: h.total_pnl,
+    pnlPct: h.pnl_per,
+    oneDay: h.one_day_change,
+    oneDayPct: h.one_day_change_percentage,
+  }))
+
+  const bondRows = (holdings?.bonds.holdings ?? []).map((h) => ({
+    name: h.investment,
+    isin: h.investment_code ?? '—',
+    units: h.total_units ?? '—',
+    unitPrice: h.unit_price != null ? `₹${h.unit_price.toLocaleString('en-IN')}` : '—',
+    invested: formatCurrency(h.invested_amount),
+    current: formatCurrency(h.market_value),
+    pnl: h.total_pnl,
+    pnlPct: h.pnl_per,
+  }))
+
+  const fdRows = (holdings?.fd.holdings ?? []).map((h) => ({
+    name: h.investment,
+    invested: formatCurrency(h.invested_amount),
+    current: formatCurrency(h.market_value),
+    interest: formatCurrency(h.total_pnl),
+    interestPct: h.pnl_per,
+  }))
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* Video Hero Section */}
-      <AnimatePresence mode="wait">
         {showVideo && (
           <motion.section
             key="video-hero"
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
+            animate={{ opacity: 1 }}
             className="relative min-h-screen flex items-center justify-center overflow-hidden"
           >
             <video
@@ -100,12 +156,15 @@ export function PortfolioPage() {
                 transition={{ duration: 0.8 }}
                 className="text-center"
               >
-                <Badge variant="blue" className="mb-4">Portfolio Overview</Badge>
+                <Badge variant="blue" className="mb-4">Live from INDmoney</Badge>
                 <h1 className="font-heading font-bold leading-tight text-text-primary mb-6" style={{ fontSize: 'clamp(3rem, 6vw, 5rem)', letterSpacing: '-0.03em' }}>
                   Your Wealth<br />At a Glance
                 </h1>
                 <p className="text-text-secondary text-lg max-w-2xl mx-auto mb-8">
-                  Total portfolio value: <strong className="text-text-primary">₹2.48 Cr</strong> • Today: <strong className="text-green-400">+₹1.24L (+0.5%)</strong>
+                  {holdingsLoading
+                    ? 'Loading live data from INDmoney…'
+                    : <>Total portfolio: <strong className="text-text-primary">{formatCurrency(totalValue)}</strong> • Net worth: <strong className="text-blue-400">{formatCurrency(totalNetworth)}</strong></>
+                  }
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button variant="primary" size="lg" className="gap-2">
@@ -134,18 +193,17 @@ export function PortfolioPage() {
 
         {!showVideo && (
           <motion.section
-            key="portfolio-content"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.6 }}
             className="relative min-h-screen"
           >
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-bg-primary/60 to-bg-primary/80" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-bg-primary/60 to-bg-primary/80 pointer-events-none" />
 
             {/* Portfolio Content */}
             <main className="pb-16 px-6 lg:px-8">
               <div className="max-w-[1400px] mx-auto space-y-8">
-                {/* Portfolio Header */}
+                {/* Header */}
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -154,7 +212,9 @@ export function PortfolioPage() {
                 >
                   <div>
                     <h2 className="font-heading text-3xl font-semibold text-text-primary">Portfolio Overview</h2>
-                    <p className="text-text-secondary mt-1">{portfolioData.dayChange}</p>
+                    <p className="text-text-secondary mt-1">
+                      {holdingsLoading ? 'Fetching live data…' : `P&L: ${formatCurrency(totalPnl)} (${formatPercent(totalPnlPct)})`}
+                    </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <Button variant="primary" asChild>
@@ -163,27 +223,42 @@ export function PortfolioPage() {
                     <Button variant="secondary" asChild>
                       <a href="/portfolio/intelligence">View Intelligence</a>
                     </Button>
-                    <Button variant="outline">Add Holding</Button>
                     <Button variant="ghost">
                       <Download className="w-4 h-4 mr-1" />
                       Export
                     </Button>
+                    <Button variant="ghost" onClick={refreshAll} disabled={holdingsLoading}>
+                      <RefreshCw className={cn('w-4 h-4 mr-1', holdingsLoading ? 'animate-spin' : '')} />
+                      Refresh
+                    </Button>
                   </div>
                 </motion.div>
 
-                {/* Key Metrics */}
+                {/* Key Metrics — live from INDmoney */}
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+                  className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4"
                 >
-                  <MetricGroup columns={1}>
-                    <Metric value={portfolioData.totalValue} label="Total Value" size="lg" prefix="₹" />
-                    <Metric value={portfolioData.investedValue} label="Invested" size="lg" prefix="₹" />
-                    <Metric value={portfolioData.pnl} label="P&L" change={portfolioData.pnlPercent} changeType="positive" size="lg" prefix="₹" />
-                    <Metric value={portfolioData.xirr} label="XIRR" size="lg" suffix="%" />
-                  </MetricGroup>
+                  {[
+                    { label: 'Total Assets',   value: formatCurrency(totalValue),    sub: '' },
+                    { label: 'Total Invested',  value: formatCurrency(totalInvested), sub: '' },
+                    { label: 'Overall P&L',     value: formatCurrency(totalPnl),      sub: formatPercent(totalPnlPct), positive: totalPnl >= 0 },
+                    { label: 'Net Worth',       value: formatCurrency(totalNetworth), sub: '' },
+                    { label: 'Liabilities',     value: formatCurrency(liabilities),   sub: '', negative: true },
+                    { label: "Today's Change",  value: formatCurrency(todayChange),   sub: '', positive: todayChange >= 0, negative: todayChange < 0 },
+                  ].map((m) => (
+                    <Card key={m.label} variant="default" padding="md">
+                      <p className="text-caption text-text-muted uppercase tracking-wider mb-1">{m.label}</p>
+                      <p className={cn('font-heading text-xl font-bold', m.positive ? 'text-green-400' : m.negative ? 'text-red-400' : 'text-text-primary')}>
+                        {holdingsLoading ? '…' : m.value}
+                      </p>
+                      {m.sub && (
+                        <p className={cn('text-xs mt-0.5', m.positive ? 'text-green-400' : 'text-text-muted')}>{m.sub}</p>
+                      )}
+                    </Card>
+                  ))}
                 </motion.div>
 
                 {/* Tabs */}
@@ -196,131 +271,347 @@ export function PortfolioPage() {
                     <TabsList className="w-full mb-6">
                       <TabsTrigger value="overview">Overview</TabsTrigger>
                       <TabsTrigger value="holdings">Holdings</TabsTrigger>
+                      <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
                       <TabsTrigger value="allocation">Allocation</TabsTrigger>
-                      <TabsTrigger value="performance">Performance</TabsTrigger>
+                      <TabsTrigger value="ai-analysis">AI Analysis</TabsTrigger>
                     </TabsList>
 
+                    {/* ── OVERVIEW TAB ───────────────────────────────────────── */}
                     <TabsContent value="overview" className="space-y-6">
-                      {/* Asset Allocation */}
-                      <div className="grid lg:grid-cols-2 gap-6">
-                        <Card variant="strong" padding="lg">
-                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Asset Allocation</h3>
-                          <div className="space-y-4">
-                            {portfolioData.allocation.map((asset) => (
-                              <div key={asset.name} className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-3 h-3 rounded-full ${asset.color}`} />
-                                  <div>
-                                    <p className="font-medium text-text-primary">{asset.name}</p>
-                                    <p className="text-sm text-text-muted">{asset.value}</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-heading font-bold text-text-primary">{asset.amount}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-6 pt-6 border-t border-border-subtle">
-                            <p className="text-sm text-text-muted">Equities dominate at 62%. Consider diversifying into fixed income for risk reduction.</p>
-                          </div>
-                        </Card>
-
-                        <Card variant="strong" padding="lg">
-                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Sector Allocation</h3>
-                          <div className="space-y-3 max-h-64 overflow-y-auto">
-                            {portfolioData.sectorAllocation.map((sector) => (
-                              <div key={sector.sector} className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className={`w-3 h-3 rounded-full ${sector.color} flex-shrink-0`} />
-                                  <p className="font-medium text-text-primary truncate">{sector.sector}</p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="w-32 h-2 bg-bg-tertiary rounded-full overflow-hidden flex-shrink-0">
-                                    <div
-                                      className={`h-full ${sector.color} rounded-full transition-all duration-500`}
-                                      style={{ width: sector.weight }}
-                                    />
-                                  </div>
-                                  <span className="font-heading font-semibold text-text-primary w-16 text-right">{sector.weight}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <AIInsight type="insight" title="Concentration Alert" className="mt-4">
-                            Technology exposure at 42% (Financial Services + IT). Consider reducing concentration for better diversification.
-                          </AIInsight>
-                        </Card>
-                      </div>
-
-                      {/* Quick Stats */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card variant="default" padding="md">
-                          <p className="text-caption text-text-muted uppercase tracking-wider mb-1">Total Holdings</p>
-                          <p className="font-heading text-2xl font-bold text-text-primary">{portfolioData.holdings.length}</p>
-                        </Card>
-                        <Card variant="default" padding="md">
-                          <p className="text-caption text-text-muted uppercase tracking-wider mb-1">Asset Classes</p>
-                          <p className="font-heading text-2xl font-bold text-text-primary">4</p>
-                        </Card>
-                        <Card variant="default" padding="md">
-                          <p className="text-caption text-text-muted uppercase tracking-wider mb-1">Sectors</p>
-                          <p className="font-heading text-2xl font-bold text-text-primary">7</p>
-                        </Card>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="holdings" className="space-y-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-heading text-lg font-semibold text-text-primary">All Holdings</h3>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">Add Holding</Button>
-                          <Button variant="ghost" size="sm"><Search className="w-4 h-4 mr-1" /> Search</Button>
+                      {holdingsError && (
+                        <div className="p-4 border border-red-400/30 rounded-xl bg-red-400/5">
+                          <p className="text-red-400 font-medium">Failed to load INDmoney data</p>
+                          <p className="text-text-secondary text-sm mt-1">{holdingsError.userMessage}</p>
+                          <Button variant="outline" size="sm" className="mt-3" onClick={refreshAll}>Retry</Button>
                         </div>
+                      )}
+
+                      <div className="grid lg:grid-cols-2 gap-6">
+                        {/* Asset Type Allocation */}
+                        <Card variant="strong" padding="lg">
+                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Asset Type Allocation</h3>
+                          {holdingsLoading ? <SkeletonTable rows={5} columns={3} /> : (
+                            <div className="space-y-3">
+                              {allocationRows.map((a) => (
+                                <div key={a.name} className="flex items-center gap-3">
+                                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${a.color}`} />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between items-baseline mb-1">
+                                      <p className="font-medium text-text-primary text-sm">{a.name}</p>
+                                      <span className="text-xs text-text-muted">{a.pct.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-bg-tertiary rounded-full">
+                                      <div className={`h-full ${a.color} rounded-full`} style={{ width: `${a.pct}%` }} />
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <p className="text-sm font-semibold text-text-primary">{formatCurrency(a.current)}</p>
+                                    <p className={cn('text-xs', a.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>
+                                      {a.pnl >= 0 ? '+' : ''}{formatCurrency(a.pnl)} ({a.pnlPct >= 0 ? '+' : ''}{a.pnlPct.toFixed(2)}%)
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </Card>
+
+                        {/* Asset Class Breakdown */}
+                        <Card variant="strong" padding="lg">
+                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Asset Class Breakdown</h3>
+                          {holdingsLoading ? <SkeletonTable rows={5} columns={3} /> : (
+                            <div className="space-y-3">
+                              {assetClassRows.map((a) => (
+                                <div key={a.assetclass_l2} className="flex items-center justify-between p-2 rounded-lg bg-bg-glass">
+                                  <div>
+                                    <p className="font-medium text-text-primary text-sm">{a.assetclass_l2}</p>
+                                    <p className="text-xs text-text-muted">Invested {formatCurrency(a.invested_value)}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-semibold text-text-primary text-sm">{formatCurrency(a.current_value)}</p>
+                                    <p className={cn('text-xs', a.return_ >= 0 ? 'text-green-400' : 'text-red-400')}>
+                                      {a.return_ >= 0 ? '+' : ''}{a.return_percentage.toFixed(2)}%
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </Card>
                       </div>
-                      <div className="overflow-x-auto">
-                        <ReportTable
-                          headers={['Asset', 'Type', 'Qty', 'Avg Price', 'Current', 'Value', 'P&L', 'Weight', '']}
-                          rows={portfolioData.holdings.map(h => [
-                            <div>
-                              <p className="font-medium text-text-primary">{h.symbol}</p>
-                              <p className="text-sm text-text-muted">{h.name}</p>
-                            </div>,
-                            <Badge variant="blue" size="sm">{h.type}</Badge>,
-                            h.qty.toLocaleString(),
-                            `₹${h.avgPrice}`,
-                            `₹${h.currentPrice}`,
-                            h.value,
-                            <span className={cn('font-mono font-medium', h.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400')}>{h.pnl}</span>,
-                            h.weight,
-                            <Button variant="ghost" size="sm" className="p-1"><ArrowRight className="w-4 h-4" /></Button>
-                          ])}
-                        />
-                      </div>
+
+                      {/* Liabilities */}
+                      {snapshot && (
+                        <Card variant="strong" padding="lg">
+                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Liabilities</h3>
+                          <div className="grid md:grid-cols-3 gap-4">
+                            <div className="p-3 rounded-xl bg-red-400/5 border border-red-400/20">
+                              <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Total Liabilities</p>
+                              <p className="font-heading text-xl font-bold text-red-400">{formatCurrency(snapshot.liabilities.total)}</p>
+                            </div>
+                            {snapshot.liabilities.loans.filter(l => l.current_balance > 0).map((l) => (
+                              <div key={l.lender} className="p-3 rounded-xl bg-bg-glass">
+                                <p className="text-xs text-text-muted mb-1">{l.lender}</p>
+                                <p className="font-semibold text-text-primary">{formatCurrency(l.current_balance)}</p>
+                                <p className="text-xs text-text-muted">{l.loan_type}</p>
+                              </div>
+                            ))}
+                            {snapshot.liabilities.credit_cards.filter(c => c.total_due > 0).map((c) => (
+                              <div key={c.name} className="p-3 rounded-xl bg-bg-glass">
+                                <p className="text-xs text-text-muted mb-1">{c.name}</p>
+                                <p className="font-semibold text-red-400">{formatCurrency(c.total_due)}</p>
+                                {c.due_date && <p className="text-xs text-text-muted">Due {c.due_date}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </Card>
+                      )}
                     </TabsContent>
 
+                    {/* ── HOLDINGS TAB ───────────────────────────────────────── */}
+                    <TabsContent value="holdings" className="space-y-4">
+                      {/* Sub-tabs */}
+                      <div className="flex gap-2 flex-wrap">
+                        {(['stocks', 'mf', 'bonds', 'fd'] as const).map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => setHoldingsTab(t)}
+                            className={cn(
+                              'px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+                              holdingsTab === t ? 'bg-blue-500 text-white' : 'bg-bg-tertiary text-text-muted hover:text-text-primary',
+                            )}
+                          >
+                            {{ stocks: '🇮🇳 Stocks', mf: '📈 Mutual Funds', bonds: '🔗 Bonds', fd: '🏧 Fixed Deposits' }[t]}
+                          </button>
+                        ))}
+                      </div>
+
+                      {holdingsError && (
+                        <div className="p-4 border border-red-400/30 rounded-xl">
+                          <p className="text-red-400 font-medium">{holdingsError.userMessage}</p>
+                          <Button variant="outline" size="sm" className="mt-2" onClick={refreshAll}>Retry</Button>
+                        </div>
+                      )}
+
+                      {retrying && !holdingsLoading && (
+                        <div className="p-3 border border-blue-400/20 rounded-xl bg-blue-400/5 flex items-center gap-3">
+                          <RefreshCw className="w-4 h-4 text-blue-400 animate-spin flex-shrink-0" />
+                          <p className="text-blue-300 text-sm">
+                            INDmoney rate limit — retrying in a moment… (attempt {retryAttempt}/{5})
+                          </p>
+                        </div>
+                      )}
+
+                      {holdingsLoading && <SkeletonTable rows={6} columns={7} />}
+
+                      {/* Indian Stocks */}
+                      {!holdingsLoading && holdingsTab === 'stocks' && (
+                        <>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            {[
+                              { label: 'Total Value',   value: formatCurrency(holdings?.ind_stocks.asset_summary.total_value ?? 0) },
+                              { label: 'Invested',      value: formatCurrency(holdings?.ind_stocks.asset_summary.invested ?? 0) },
+                              { label: "Today's P&L",   value: formatCurrency(holdings?.ind_stocks.asset_summary.one_day_change ?? 0), colored: true, val: holdings?.ind_stocks.asset_summary.one_day_change ?? 0 },
+                              { label: 'Holdings',      value: String(stockRows.length) },
+                            ].map((m) => (
+                              <Card key={m.label} variant="default" padding="sm">
+                                <p className="text-caption text-text-muted uppercase tracking-wider mb-1">{m.label}</p>
+                                <p className={cn('font-heading text-lg font-bold', m.colored ? (m.val! >= 0 ? 'text-green-400' : 'text-red-400') : 'text-text-primary')}>{m.value}</p>
+                              </Card>
+                            ))}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <ReportTable
+                              headers={['Stock', 'Units', 'Unit Price', 'Invested', 'Current', 'P&L', 'P&L %', '1D Change', 'Broker']}
+                              rows={stockRows.map((h) => [
+                                <p className="font-medium text-text-primary text-sm">{h.name}</p>,
+                                String(h.units),
+                                h.unitPrice,
+                                h.invested,
+                                h.current,
+                                <span className={cn('font-mono text-sm', h.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{h.pnl >= 0 ? '+' : ''}{formatCurrency(h.pnl)}</span>,
+                                <span className={cn('font-mono text-sm', h.pnlPct >= 0 ? 'text-green-400' : 'text-red-400')}>{h.pnlPct >= 0 ? '+' : ''}{h.pnlPct.toFixed(2)}%</span>,
+                                <span className={cn('font-mono text-sm', h.oneDay >= 0 ? 'text-green-400' : 'text-red-400')}>{h.oneDay >= 0 ? '+' : ''}{formatCurrency(h.oneDay)}</span>,
+                                <span className="text-text-muted text-xs">{h.broker}</span>,
+                              ])}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Mutual Funds */}
+                      {!holdingsLoading && holdingsTab === 'mf' && (
+                        <>
+                          {holdings?.mutual_funds.fetch_error && (
+                            <div className="p-3 border border-yellow-400/30 rounded-xl bg-yellow-400/5 flex items-center justify-between">
+                              <p className="text-yellow-400 text-sm">Data temporarily unavailable — retrying…</p>
+                              <Button variant="outline" size="sm" onClick={refreshAll}>Retry Now</Button>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            {[
+                              { label: 'Total Value',  value: formatCurrency(holdings?.mutual_funds.asset_summary.total_value ?? 0) },
+                              { label: 'Invested',     value: formatCurrency(holdings?.mutual_funds.asset_summary.invested ?? 0) },
+                              { label: 'Total P&L',    value: formatCurrency((holdings?.mutual_funds.asset_summary.total_value ?? 0) - (holdings?.mutual_funds.asset_summary.invested ?? 0)), colored: true, val: (holdings?.mutual_funds.asset_summary.total_value ?? 0) - (holdings?.mutual_funds.asset_summary.invested ?? 0) },
+                              { label: "Today's Move", value: formatCurrency(holdings?.mutual_funds.asset_summary.one_day_change ?? 0), colored: true, val: holdings?.mutual_funds.asset_summary.one_day_change ?? 0 },
+                            ].map((m) => (
+                              <Card key={m.label} variant="default" padding="sm">
+                                <p className="text-caption text-text-muted uppercase tracking-wider mb-1">{m.label}</p>
+                                <p className={cn('font-heading text-lg font-bold', m.colored ? (m.val! >= 0 ? 'text-green-400' : 'text-red-400') : 'text-text-primary')}>{m.value}</p>
+                              </Card>
+                            ))}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <ReportTable
+                              headers={['Fund', 'Units', 'NAV', 'Invested', 'Current', 'P&L', 'P&L %', '1D']}
+                              rows={mfRows.map((h) => [
+                                <p className="font-medium text-text-primary text-sm max-w-xs truncate">{h.name}</p>,
+                                h.units,
+                                h.nav,
+                                h.invested,
+                                h.current,
+                                <span className={cn('font-mono text-sm', h.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{h.pnl >= 0 ? '+' : ''}{formatCurrency(h.pnl)}</span>,
+                                <span className={cn('font-mono text-sm', h.pnlPct >= 0 ? 'text-green-400' : 'text-red-400')}>{h.pnlPct >= 0 ? '+' : ''}{h.pnlPct.toFixed(2)}%</span>,
+                                <span className={cn('font-mono text-sm', h.oneDay >= 0 ? 'text-green-400' : 'text-red-400')}>{h.oneDay >= 0 ? '+' : ''}{formatCurrency(h.oneDay)}</span>,
+                              ])}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Bonds */}
+                      {!holdingsLoading && holdingsTab === 'bonds' && (
+                        <>
+                          {holdings?.bonds.fetch_error && (
+                            <div className="p-3 border border-yellow-400/30 rounded-xl bg-yellow-400/5 flex items-center justify-between">
+                              <p className="text-yellow-400 text-sm">Data temporarily unavailable — retrying…</p>
+                              <Button variant="outline" size="sm" onClick={refreshAll}>Retry Now</Button>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                            {[
+                              { label: 'Total Value', value: formatCurrency(holdings?.bonds.asset_summary.total_value ?? 0) },
+                              { label: 'Invested',    value: formatCurrency(holdings?.bonds.asset_summary.invested ?? 0) },
+                              { label: 'P&L',         value: formatCurrency((holdings?.bonds.asset_summary.total_value ?? 0) - (holdings?.bonds.asset_summary.invested ?? 0)), colored: true, val: (holdings?.bonds.asset_summary.total_value ?? 0) - (holdings?.bonds.asset_summary.invested ?? 0) },
+                            ].map((m) => (
+                              <Card key={m.label} variant="default" padding="sm">
+                                <p className="text-caption text-text-muted uppercase tracking-wider mb-1">{m.label}</p>
+                                <p className={cn('font-heading text-lg font-bold', m.colored ? (m.val! >= 0 ? 'text-green-400' : 'text-red-400') : 'text-text-primary')}>{m.value}</p>
+                              </Card>
+                            ))}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <ReportTable
+                              headers={['Bond', 'ISIN', 'Units', 'Unit Price', 'Invested', 'Current', 'P&L', 'P&L %']}
+                              rows={bondRows.map((h) => [
+                                <p className="font-medium text-text-primary text-sm max-w-xs">{h.name}</p>,
+                                <span className="text-text-muted text-xs font-mono">{h.isin}</span>,
+                                String(h.units),
+                                h.unitPrice,
+                                h.invested,
+                                h.current,
+                                <span className={cn('font-mono text-sm', h.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{h.pnl >= 0 ? '+' : ''}{formatCurrency(h.pnl)}</span>,
+                                <span className={cn('font-mono text-sm', h.pnlPct >= 0 ? 'text-green-400' : 'text-red-400')}>{h.pnlPct >= 0 ? '+' : ''}{h.pnlPct.toFixed(2)}%</span>,
+                              ])}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Fixed Deposits */}
+                      {!holdingsLoading && holdingsTab === 'fd' && (
+                        <>
+                          {holdings?.fd.fetch_error && (
+                            <div className="p-3 border border-yellow-400/30 rounded-xl bg-yellow-400/5 flex items-center justify-between">
+                              <p className="text-yellow-400 text-sm">Data temporarily unavailable — retrying…</p>
+                              <Button variant="outline" size="sm" onClick={refreshAll}>Retry Now</Button>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                            {[
+                              { label: 'Total Value',      value: formatCurrency(holdings?.fd.asset_summary.total_value ?? 0) },
+                              { label: 'Principal',        value: formatCurrency(holdings?.fd.asset_summary.invested ?? 0) },
+                              { label: 'Interest Earned',  value: formatCurrency((holdings?.fd.asset_summary.total_value ?? 0) - (holdings?.fd.asset_summary.invested ?? 0)), colored: true, val: 1 },
+                            ].map((m) => (
+                              <Card key={m.label} variant="default" padding="sm">
+                                <p className="text-caption text-text-muted uppercase tracking-wider mb-1">{m.label}</p>
+                                <p className={cn('font-heading text-lg font-bold', m.colored ? 'text-green-400' : 'text-text-primary')}>{m.value}</p>
+                              </Card>
+                            ))}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <ReportTable
+                              headers={['Name', 'Principal', 'Current Value', 'Interest Earned', 'Return %']}
+                              rows={fdRows.map((h) => [
+                                h.name,
+                                h.invested,
+                                h.current,
+                                <span className="text-green-400 font-mono text-sm">+{h.interest}</span>,
+                                <span className="text-green-400 font-mono text-sm">+{h.interestPct.toFixed(2)}%</span>,
+                              ])}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </TabsContent>
+
+                    {/* ── WATCHLIST TAB ─────────────────────────────────────── */}
+                    <TabsContent value="watchlist" className="space-y-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-heading text-lg font-semibold text-text-primary">My Watchlists</h3>
+                        <Button variant="ghost" size="sm" onClick={refreshWatchlist} disabled={watchlistLoading}>
+                          <RefreshCw className={cn('w-4 h-4', watchlistLoading ? 'animate-spin' : '')} />
+                        </Button>
+                      </div>
+
+                      {watchlistError && (
+                        <div className="p-4 border border-red-400/30 rounded-xl">
+                          <p className="text-red-400">{watchlistError.userMessage}</p>
+                        </div>
+                      )}
+
+                      {watchlistLoading && <SkeletonTable rows={4} columns={3} />}
+
+                      {!watchlistLoading && watchlists.map((wl) => (
+                        <Card key={wl.watchlist_id} variant="strong" padding="lg">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-heading text-base font-semibold text-text-primary">{wl.name}</h4>
+                            <Badge variant="blue" size="sm">{wl.stocks.length} stocks</Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {wl.stocks.map((s, idx) => (
+                              <span
+                                key={`${s.ticker}-${idx}`}
+                                className="px-3 py-1 rounded-full text-sm font-medium bg-bg-glass border border-border-subtle text-text-primary hover:border-blue-400/50 transition-colors"
+                              >
+                                {s.ticker}
+                              </span>
+                            ))}
+                          </div>
+                        </Card>
+                      ))}
+                    </TabsContent>
+
+                    {/* ── ALLOCATION TAB ────────────────────────────────────── */}
                     <TabsContent value="allocation" className="space-y-6">
                       <div className="grid lg:grid-cols-2 gap-6">
                         <Card variant="strong" padding="lg">
-                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Asset Class Breakdown</h3>
-                          <div className="space-y-4">
-                            {portfolioData.allocation.map((asset) => (
-                              <div key={asset.name} className="flex items-center justify-between gap-4 p-3 bg-bg-glass rounded-xl">
+                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">By Asset Type</h3>
+                          <div className="space-y-3">
+                            {allocationRows.map((a) => (
+                              <div key={a.name} className="flex items-center justify-between gap-4 p-3 bg-bg-glass rounded-xl">
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-4 h-4 rounded-full ${asset.color}`} />
+                                  <div className={`w-4 h-4 rounded-full ${a.color}`} />
                                   <div>
-                                    <p className="font-medium text-text-primary">{asset.name}</p>
-                                    <p className="text-sm text-text-muted">{asset.amount}</p>
+                                    <p className="font-medium text-text-primary">{a.name}</p>
+                                    <p className="text-xs text-text-muted">Invested {formatCurrency(a.invested)}</p>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p className="font-heading font-bold text-text-primary">{asset.value}</p>
-                                  <div className="w-32 h-2 bg-bg-tertiary rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full ${asset.color} rounded-full`}
-                                      style={{ width: asset.value }}
-                                    />
-                                  </div>
+                                  <p className="font-semibold text-text-primary">{formatCurrency(a.current)}</p>
+                                  <p className={cn('text-xs', a.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>
+                                    {a.pnl >= 0 ? '+' : ''}{a.pnlPct.toFixed(2)}% · {a.pct.toFixed(1)}% of portfolio
+                                  </p>
                                 </div>
                               </div>
                             ))}
@@ -328,23 +619,14 @@ export function PortfolioPage() {
                         </Card>
 
                         <Card variant="strong" padding="lg">
-                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Geographic Exposure</h3>
+                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Market Cap Split (Stocks)</h3>
                           <div className="space-y-3">
-                            {[
-                              { name: 'India', weight: '92%', color: 'bg-blue-400' },
-                              { name: 'US', weight: '5%', color: 'bg-indigo-400' },
-                              { name: 'Global/Other', weight: '3%', color: 'bg-green-400' },
-                            ].map((geo) => (
-                              <div key={geo.name} className="flex items-center justify-between gap-4 p-3 bg-bg-glass rounded-xl">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-4 h-4 rounded-full ${geo.color}`} />
-                                  <p className="font-medium text-text-primary">{geo.name}</p>
-                                </div>
+                            {(snapshot?.market_cap ?? []).filter(m => m.current_value > 0).map((m) => (
+                              <div key={m.market_cap} className="flex items-center justify-between p-3 bg-bg-glass rounded-xl">
+                                <p className="font-medium text-text-primary">{m.market_cap}</p>
                                 <div className="text-right">
-                                  <p className="font-heading font-bold text-text-primary">{geo.weight}</p>
-                                  <div className="w-32 h-2 bg-bg-tertiary rounded-full overflow-hidden">
-                                    <div className={`h-full ${geo.color} rounded-full`} style={{ width: geo.weight }} />
-                                  </div>
+                                  <p className="font-semibold text-text-primary">{formatCurrency(m.current_value)}</p>
+                                  <p className="text-xs text-text-muted">{m.progress_value_percentage.toFixed(1)}% of stocks</p>
                                 </div>
                               </div>
                             ))}
@@ -353,44 +635,67 @@ export function PortfolioPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="performance" className="space-y-6">
-                      <Card variant="strong" padding="lg">
-                        <h3 className="font-heading text-lg font-semibold text-text-primary mb-6">Performance vs Benchmark (NIFTY 50)</h3>
-                        <div className="overflow-x-auto">
-                          <ReportTable
-                            headers={['Period', 'Portfolio', 'Benchmark (NIFTY 50)', 'Excess Return']}
-                            rows={portfolioData.performance.map(p => [
-                              p.period,
-                              <span className={cn('font-mono font-medium', p.portfolio.startsWith('+') ? 'text-green-400' : 'text-red-400')}>{p.portfolio}</span>,
-                              <span className={cn('font-mono', p.benchmark.startsWith('+') ? 'text-green-400' : 'text-red-400')}>{p.benchmark}</span>,
-                              <span className={cn('font-mono font-medium', p.excess.startsWith('+') ? 'text-green-400' : 'text-red-400')}>{p.excess}</span>,
-                            ])}
-                          />
+                    {/* AI Portfolio Analysis Tab */}
+                    <TabsContent value="ai-analysis" className="space-y-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-heading text-lg font-semibold text-text-primary">AI Portfolio Analysis</h3>
+                          <p className="text-text-secondary text-sm mt-1">Upload your holdings file (Excel/CSV) or use the default portfolio to get a full AI-generated analysis.</p>
                         </div>
-                        <AIInsight type="insight" title="Performance Attribution" className="mt-4">
-                          Portfolio has outperformed NIFTY 50 by +5.9% over 1Y driven by strong stock selection in Financial Services (HDFC Bank, ICICI Bank) and Consumer sectors. Mutual fund allocation added +2.1% alpha. Fixed income drag minimal at -0.3%.
-                        </AIInsight>
-                      </Card>
 
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <Card variant="default" padding="lg">
-                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Risk Metrics</h3>
-                          <MetricGroup columns={2} gap="sm">
-                            <Metric value="14.2%" label="Portfolio Volatility" size="md" suffix="%" />
-                            <Metric value="1.34" label="Sharpe Ratio" size="md" />
-                            <Metric value="-12.8%" label="Max Drawdown" size="md" suffix="%" changeType="negative" />
-                            <Metric value="0.94" label="Beta vs NIFTY" size="md" />
-                          </MetricGroup>
-                        </Card>
-                        <Card variant="default" padding="lg">
-                          <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">Rolling Returns (3Y)</h3>
-                          <MetricGroup columns={2} gap="sm">
-                            <Metric value="18.4%" label="Average" size="md" suffix="%" />
-                            <Metric value="24.1%" label="Best 1Y" size="md" suffix="%" changeType="positive" />
-                            <Metric value="11.2%" label="Worst 1Y" size="md" suffix="%" />
-                            <Metric value="0.78" label="Hit Ratio" size="md" />
-                          </MetricGroup>
-                        </Card>
+                        {pfStatus === 'idle' && (
+                          <div className="space-y-6">
+                            {/* Year selector */}
+                            <div className="flex items-center gap-3">
+                              <label className="text-sm text-text-secondary">Projection year:</label>
+                              <select
+                                value={portfolioYear}
+                                onChange={(e) => setPortfolioYear(Number(e.target.value))}
+                                className="bg-bg-tertiary border border-border-subtle rounded-lg px-3 py-1.5 text-text-primary text-sm focus:outline-none focus:border-blue-400"
+                              >
+                                <option value={2025}>2025</option>
+                                <option value={2026}>2026</option>
+                                <option value={2027}>2027</option>
+                              </select>
+                            </div>
+
+                            {/* File upload */}
+                            <FileUploadInput
+                              onFile={(file) => runWithFile(file, portfolioYear)}
+                              onUseDefault={() => runDefault(portfolioYear)}
+                            />
+                          </div>
+                        )}
+
+                        {(pfStatus === 'fetching' || pfStatus === 'analyzing') && (
+                          <AnalysisProgress
+                            status={pfStatus}
+                            message={pfMessage}
+                            progress={pfProgress}
+                          />
+                        )}
+
+                        {pfStatus === 'error' && (
+                          <div className="glass-card-strong p-6 border border-red-400/30 rounded-xl">
+                            <p className="text-red-400 font-medium mb-2">Analysis failed</p>
+                            <p className="text-text-secondary text-sm">{pfError?.userMessage || pfError?.message}</p>
+                            <Button variant="outline" size="sm" className="mt-3" onClick={resetPortfolio}>
+                              Try Again
+                            </Button>
+                          </div>
+                        )}
+
+                        {pfStatus === 'complete' && pfResult && (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-heading text-xl font-semibold text-text-primary">Portfolio Report</h3>
+                              <Button variant="ghost" size="sm" onClick={resetPortfolio}>New Analysis</Button>
+                            </div>
+                            <ReportViewer
+                              finalMemo={pfResult.final_memo}
+                            />
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -404,7 +709,6 @@ export function PortfolioPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0 }}
           transition={{ duration: 0.3 }}
           className="fixed bottom-6 right-6 z-40"
         >
@@ -414,7 +718,17 @@ export function PortfolioPage() {
             </a>
           </Button>
         </motion.div>
-      </AnimatePresence>
     </div>
   )
+}
+
+// Sector color mapping
+const sectorColors: Record<string, string> = {
+  'Financial Services': 'bg-blue-400',
+  'Oil & Gas': 'bg-amber-400',
+  'Information Technology': 'bg-indigo-400',
+  'Consumer Goods': 'bg-green-400',
+  'Pharmaceuticals': 'bg-purple-400',
+  'Automobile': 'bg-pink-400',
+  'Others': 'bg-gray-400',
 }

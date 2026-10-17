@@ -36,7 +36,7 @@ export const PageContainer = forwardRef<HTMLDivElement, PageContainerProps>(
 
 PageContainer.displayName = 'PageContainer'
 
-export const Section = forwardRef<HTMLSectionElement, HTMLAttributes<HTMLSectionElement> & { spacing?: 'sm' | 'md' | 'lg' | 'xl' }>(
+export const Section = forwardRef<HTMLElement, HTMLAttributes<HTMLElement> & { spacing?: 'sm' | 'md' | 'lg' | 'xl' }>(
   ({ className, spacing = 'lg', children, ...props }, ref) => {
     const spacings = {
       sm: 'py-8',

@@ -13,9 +13,9 @@ import {
   Menu,
   X,
   ChevronRight,
-  FileText,
-  TrendingUp,
+  Settings,
 } from 'lucide-react'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 // ─── Nav item definition ──────────────────────────────────────────────────────
 interface NavItem {
@@ -51,6 +51,12 @@ const NAV_ITEMS: NavItem[] = [
     description: 'Holdings & intelligence',
   },
   {
+    label: 'Settings',
+    href: '/settings',
+    icon: <Settings className="w-4 h-4" />,
+    description: 'Preferences & profile',
+  },
+  {
     label: 'About',
     href: '/about',
     icon: <Info className="w-4 h-4" />,
@@ -58,14 +64,6 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
-// ─── Active-link helper ────────────────────────────────────────────────────────
-function useIsActive(href: string) {
-  const { pathname } = useLocation()
-  if (href === '/dashboard') return pathname === '/dashboard'
-  if (href === '/analysis')  return pathname.startsWith('/analysis')
-  if (href === '/portfolio')  return pathname.startsWith('/portfolio')
-  return pathname === href
-}
 
 // ─── Pill indicator that slides under the active link ─────────────────────────
 // Measured via refs; we track each nav item's offsetLeft + offsetWidth.
@@ -231,6 +229,9 @@ export function Navigation() {
 
           {/* ── Right — action buttons ──────────────────────────────────── */}
           <div className="flex items-center gap-2.5 shrink-0">
+            {/* Notification Bell */}
+            <NotificationBell />
+
             {/* See Plans — premium */}
             <Link
               to="/pricing"
@@ -303,15 +304,19 @@ export function Navigation() {
           </span>
         </Link>
 
-        {/* Hamburger */}
-        <button
-          className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors"
-          onClick={() => setMobileOpen(v => !v)}
-          aria-expanded={mobileOpen}
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        {/* Right mobile controls */}
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          {/* Hamburger */}
+          <button
+            className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+            onClick={() => setMobileOpen(v => !v)}
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* ── Mobile drawer ─────────────────────────────────────────────────── */}

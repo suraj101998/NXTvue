@@ -5,6 +5,11 @@ import os
 
 class Settings:
     yfinance_timeout      = int(os.getenv("YFINANCE_TIMEOUT", "30"))
+    # INDmoney OAuth credentials (used by TokenManager for auto-refresh)
+    indmoney_token        = os.getenv("INDMONEY_TOKEN", "")
+    indmoney_refresh_token = os.getenv("INDMONEY_REFRESH_TOKEN", "")
+    indmoney_client_id    = os.getenv("INDMONEY_CLIENT_ID", "")
+    indmoney_client_secret = os.getenv("INDMONEY_CLIENT_SECRET", "")
     log_level             = os.getenv("LOG_LEVEL", "INFO")
     fred_api_key          = os.getenv("FRED_API_KEY", "")
     risk_free_rate_india  = float(os.getenv("RISK_FREE_RATE_INDIA", "0.065"))
