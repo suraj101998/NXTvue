@@ -13,11 +13,10 @@ ehthumbs.db
 
 # ─── Secrets & Environment ────────────────────────────────────────────────────
 .env
+.env.example
 .env.local
 .env.*.local
-# Keep .env.example files — they document required vars without exposing values
-!.env.example
-!**/.env.example
+# Ignore all .env variants including .env.example
 
 # ─── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
