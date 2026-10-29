@@ -69,10 +69,36 @@ class ScreenerDataLayer:
     # ── Public API ─────────────────────────────────────────────────────────
 
     def compile_full_dataset(self, ticker: str) -> Dict[str, Any]:
-        symbol = ticker.upper().replace(".NS", "").replace(".BO", "")
-        url    = f"https://www.screener.in/company/{symbol}/"
+        import urllib.parse
+        symbol = ticker.strip().upper().replace(".NS", "").replace(".BO", "")
+
+        # URL-encode symbol to properly handle characters like '&' (e.g., GVT&D, M&M, L&T)
+        encoded_symbol = urllib.parse.quote(symbol, safe="")
+        url = f"https://www.screener.in/company/{encoded_symbol}/"
 
         response = self.session.get(url, timeout=self.timeout)
+        if response.status_code == 404:
+            # Dynamic lookup: Query Screener's real-time company search API to find the exact company URL slug
+            try:
+                search_q = urllib.parse.quote(symbol)
+                search_url = f"https://www.screener.in/api/company/search/?q={search_q}"
+                s_resp = self.session.get(search_url, timeout=self.timeout)
+                if s_resp.status_code == 200:
+                    matches = s_resp.json()
+                    if isinstance(matches, list) and matches:
+                        # Screener returns matches with their exact registered url (e.g., "/company/GEVT&D/" or "/company/522275/")
+                        for match in matches:
+                            target_slug = match.get("url")
+                            if target_slug:
+                                cand_url = f"https://www.screener.in{target_slug}" if target_slug.startswith("/") else f"https://www.screener.in/{target_slug}"
+                                cand_resp = self.session.get(cand_url, timeout=self.timeout)
+                                if cand_resp.status_code == 200:
+                                    response = cand_resp
+                                    url = cand_url
+                                    break
+            except Exception as search_err:
+                logger.debug("Dynamic Screener search fallback error for %s: %s", symbol, search_err)
+
         response.raise_for_status()
         html = response.text
 

@@ -2,8 +2,10 @@
 """Generate detailed investment reports for Indian or US stocks."""
 
 import argparse
+from datetime import datetime
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -27,6 +29,10 @@ logging.basicConfig(
     format="%(levelname)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Suppress repetitive HTTP and request library logging
+for noisy in ["httpx", "httpcore", "openai", "urllib3"]:
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 _REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
 _DEFAULT_MARKET = "india"
@@ -79,42 +85,79 @@ def _spin_dynamic(label: list, stop_event: threading.Event) -> None:
     sys.stdout.flush()
 
 
+def _parse_duration(val: Optional[str], default_year: int = 2026) -> Tuple[int, str]:
+    """
+    Parse a flexible duration or target projection string from the user.
+    Supports:
+        - Specific year/target: "2027", "mid-2027", "end 2027", "mid of 2027", "Q3 2027"
+        - Relative durations: "3y", "3 years", "18m", "18 months", "5yr"
+    Returns (projection_year: int, projection_horizon: str).
+    """
+    if not val:
+        return default_year, str(default_year)
+
+    raw = str(val).strip()
+    clean = raw.lower()
+
+    # Match 4-digit year like 2027, 2030
+    import re
+    m_year = re.search(r"\b(20\d\d)\b", clean)
+    if m_year:
+        year = int(m_year.group(1))
+        return year, raw
+
+    # Match relative years: '3y', '3 years', '2.5 yr'
+    m_y = re.search(r"(\d+(?:\.\d+)?)\s*(?:y|yr|years?)\b", clean)
+    if m_y:
+        y_val = float(m_y.group(1))
+        # Base year is 2024 (or default_year - 2)
+        base_year = datetime.now().year if hasattr(datetime, "now") else 2024
+        calc_year = int(round(base_year + y_val))
+        return calc_year, raw
+
+    # Match relative months: '18m', '18 months', '6mo'
+    m_m = re.search(r"(\d+)\s*(?:m|mo|months?)\b", clean)
+    if m_m:
+        m_val = int(m_m.group(1))
+        base_year = datetime.now().year if hasattr(datetime, "now") else 2024
+        calc_year = int(round(base_year + (m_val / 12.0)))
+        return calc_year, raw
+
+    try:
+        y = int(clean)
+        return y, raw
+    except ValueError:
+        return default_year, raw
+
+
 def _run_single(
     ticker: str,
     market: str,
     projection_year: int,
     output_path: str,
+    projection_horizon: Optional[str] = None,
 ) -> Dict:
     """Analyse one ticker; show progress; save PDF. Returns summary row."""
     t0 = time.monotonic()
 
-    # ── Stage 1 + 2: fetch data & generate report (both happen inside run_investment_analysis)
-    # Split into two visible phases using a callback approach:
-    # Phase A — data fetch (fast, ~5–15s)
-    # Phase B — Bob LLM generation (slow, ~60–180s)
-    # We wrap the whole call in a spinner that switches message mid-way via a shared list.
-    _label = [f"[{ticker}] Fetching financial data"]
-    stop = threading.Event()
-    spinner = threading.Thread(target=_spin_dynamic, args=(_label, stop), daemon=True)
-    spinner.start()
+    # ── Stage 1 + 2: fetch data & generate report
+    print(f"  ⏳  [{ticker}] Fetching financial data…", flush=True)
     t_fetch = time.monotonic()
 
-    try:
-        # Fetch data first so we can update the label before Bob starts
-        from nxtvue.report_generator import _load_data, _compact_data, REPORT_SYSTEM_PROMPT, _run_bob
-        data = _load_data(ticker.upper(), market.lower())
-        t_data_done = time.monotonic()
-        _label[0] = f"[{ticker}] Generating AI report  (this takes ~1–3 min)"
+    from nxtvue.report_generator import _load_data, _compact_data, REPORT_SYSTEM_PROMPT, _run_bob
+    data = _load_data(ticker.upper(), market.lower())
+    t_data_done = time.monotonic()
 
-        prompt = (
-            f"{REPORT_SYSTEM_PROMPT}\n\n"
-            f"Ticker: {ticker.upper()}\nMarket: {market.title()}\n"
-            f"Projection year: {projection_year}\n"
-            f"Source data (JSON):\n{_compact_data(data)}"
-        )
-        memo = _run_bob(prompt)
-    finally:
-        stop.set(); spinner.join()
+    print(f"  ⏳  [{ticker}] Generating AI report (this takes ~1–2 min)…", flush=True)
+
+    horizon_str = projection_horizon if projection_horizon else str(projection_year)
+    prompt = (
+        f"{REPORT_SYSTEM_PROMPT}\n\n"
+        f"Ticker: {ticker.upper()}\nMarket: {market.title()}\n"
+        f"Projection horizon / target duration: {horizon_str} (Target year: {projection_year})\n"
+        f"Source data (JSON):\n{_compact_data(data)}"
+    )
+    memo = _run_bob(prompt)
 
     fetch_s = int(t_data_done - t_fetch)
     llm_s   = int(time.monotonic() - t_data_done)
@@ -167,7 +210,12 @@ def main() -> None:
         default=_DEFAULT_MARKET,
         help="Default market for tickers that don't carry a :market suffix (default: india).",
     )
-    parser.add_argument("--year", type=int, default=2026, dest="projection_year")
+    parser.add_argument("--year", default=None, dest="projection_year", help="Projection year (e.g. 2027)")
+    parser.add_argument(
+        "--duration",
+        default=None,
+        help="Investment duration or target projection (e.g. 'mid-2027', '2027', '3 years', '18 months').",
+    )
 
     # Output
     parser.add_argument(
@@ -222,7 +270,19 @@ def main() -> None:
         help="Create a correctly formatted holdings.xlsx template in the current directory and exit.",
     )
 
+    # Wealth Management Plan Synthesizer
+    parser.add_argument(
+        "--wealth-plan",
+        action="store_true",
+        help="Synthesize an executive wealth management & asset allocation plan across all generated reports.",
+    )
+
     args = parser.parse_args()
+
+    # Resolve projection year and duration description
+    duration_input = args.duration if args.duration else args.projection_year
+    resolved_year, projection_horizon = _parse_duration(duration_input, default_year=2026)
+    args.projection_year = resolved_year
 
     # ── Holdings template (no API key needed) ─────────────────────────────────
     if args.create_template:
@@ -231,6 +291,51 @@ def main() -> None:
 
     if not os.environ.get("BOB_API_KEY"):
         parser.error("BOB_API_KEY is not set. Add it to .env or export it before running.")
+
+    # ── Wealth Plan Synthesis mode ───────────────────────────────────────────
+    if args.wealth_plan:
+        from nxtvue.wealth_manager import generate_wealth_management_plan
+        target_horizon = projection_horizon or "mid-2027"
+        print(f"\nSynthesizing wealth management plan across all reports for horizon: {target_horizon} …\n", flush=True)
+        try:
+            plan = generate_wealth_management_plan(
+                reports_dir=_REPORTS_DIR,
+                duration=target_horizon,
+            )
+            has_explicit_file = bool(args.output and (args.output.lower().endswith((".pdf", ".html")) or "/" in args.output or "\\" in args.output))
+            out = args.output if has_explicit_file else os.path.join(_REPORTS_DIR, "WEALTH_PLAN.pdf")
+            memo_to_render = plan.get("synthesized_memo")
+            if not memo_to_render:
+                # Build fallback structured markdown memo if LLM returned empty
+                lines = [
+                    f"# Executive Wealth Management Plan ({target_horizon})",
+                    f"**Total Reports Evaluated:** {plan['total_reports_evaluated']}\n",
+                    "## 1. Top Conviction Selections & Capital Allocation\n",
+                    "| Ticker | Allocation | Stance | Core Rationale |",
+                    "| :--- | :---: | :---: | :--- |",
+                ]
+                for alloc in plan["allocations"]:
+                    lines.append(f"| **{alloc['ticker']}** | **{alloc['weight']}** | {alloc['rating']} | {alloc['rationale']} |")
+                lines.append("\n## 2. Watchlist Categorization\n")
+                lines.append(f"- **Top Buys ({len(plan['top_selections'])}):** {', '.join([b['ticker'] for b in plan['top_selections']])}")
+                lines.append(f"- **Holds ({len(plan['holds'])}):** {', '.join([h['ticker'] for h in plan['holds']])}")
+                lines.append(f"- **Avoid / Trim ({len(plan['avoids'])}):** {', '.join([a['ticker'] for a in plan['avoids']])}")
+                memo_to_render = "\n".join(lines)
+
+            saved = save_pdf(memo_to_render, "WEALTH_PLAN", out)
+            print(f"✓ Evaluated {plan['total_reports_evaluated']} report(s).")
+            print(f"✓ Wealth Management Plan saved → {saved}\n")
+            print("─" * 72)
+            print(f"  {'TICKER':<10} {'WEIGHT':<10} {'STANCE':<12} {'ENTRY / RATIONALE'}")
+            print("─" * 72)
+            for alloc in plan["allocations"]:
+                print(f"  {alloc['ticker']:<10} {alloc['weight']:<10} {alloc['rating']:<12} {alloc['entry_plan'][:40]}")
+            print("─" * 72)
+            print(f"\nFull Wealth Management Plan Memo available in: {saved}\n")
+        except Exception as exc:
+            logger.error("Wealth plan synthesis failed: %s", exc)
+            raise SystemExit(1) from exc
+        return
 
     # ── Portfolio mode ────────────────────────────────────────────────────────
     if args.portfolio:
@@ -257,9 +362,30 @@ def main() -> None:
         return
 
     # ── Collect tickers ───────────────────────────────────────────────────────
+    # If --output was provided without an explicit filepath (or followed by a ticker),
+    # argparse with nargs='?' consumes the next positional argument into args.output.
+    # Detect when args.output is actually a ticker (not a filepath) or when multiple
+    # tickers were supplied, and restore it to the ticker list.
+    tokens = list(args.tickers)
+    custom_output_file = None
+    if args.output:
+        is_filepath = (
+            args.output.lower().endswith((".pdf", ".html"))
+            or "/" in args.output
+            or "\\" in args.output
+        )
+        if is_filepath and not tokens:
+            # e.g. used with --portfolio or single target
+            custom_output_file = args.output
+        elif is_filepath and len(tokens) == 1:
+            custom_output_file = args.output
+        else:
+            # It was a ticker consumed by nargs='?' (e.g. --output NVDA MSFT ...)
+            tokens.insert(0, args.output)
+
     ticker_market: Dict[str, str] = {}  # ticker → market (last one wins on duplicates)
 
-    for token in args.tickers:
+    for token in tokens:
         try:
             t, m = _parse_ticker_market(token, args.market)
             ticker_market[t] = m
@@ -326,12 +452,14 @@ def main() -> None:
         return
 
     # ── Single / batch mode ───────────────────────────────────────────────────
-    if len(tickers) == 1 and args.output and args.output != "":
-        output_paths = {tickers[0]: args.output}
+    if len(tickers) == 1 and custom_output_file:
+        output_paths = {tickers[0]: custom_output_file}
     else:
         output_paths = {t: _pdf_path(t) for t in tickers}
 
-    print(f"\nRunning analysis for {len(tickers)} ticker(s): {', '.join(tickers)}\n")
+    ticker_display = [f"{t} ({ticker_market[t].upper()})" for t in tickers]
+    horizon_label = f" | Target / Duration: {projection_horizon}" if projection_horizon else ""
+    print(f"\nRunning analysis for {len(tickers)} ticker(s): {', '.join(ticker_display)}{horizon_label}\n")
     summary_rows: List[Dict] = []
     errors: List[str] = []
 
@@ -340,6 +468,7 @@ def main() -> None:
             row = _run_single(
                 ticker, ticker_market[ticker], args.projection_year,
                 output_paths[ticker],
+                projection_horizon=projection_horizon,
             )
             summary_rows.append(row)
         except Exception as exc:

@@ -122,22 +122,82 @@ async def indmoney_holdings_by_type(asset_type: str):
     return HoldingsResponse(holdings=holdings, asset_summary=asset_summary)
 
 
+import glob
+import os
+
+def _determine_stock_market(ticker: str, ind_key: str = "") -> str:
+    """Dynamically classify whether a stock ticker belongs to Indian market or US market from INDmoney attributes."""
+    t = (ticker or "").strip().upper()
+    k = (ind_key or "").strip().upper()
+    if ":INDIA" in t or t.endswith(".NS") or t.endswith(".BO"):
+        return "india"
+    if ":US" in t:
+        return "us"
+    if k.startswith("INDS") or "NSE" in k or "BSE" in k or any(char.isdigit() for char in t):
+        return "india"
+    if k.startswith("USS") or "NASDAQ" in k or "NYSE" in k:
+        return "us"
+    # Fallback based on INDmoney default namespace
+    return "india" if "IND" in k else "us"
+
+
+def _get_existing_reports_set() -> set:
+    """Find all existing generated report tickers."""
+    candidates = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "reports")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "reports")),
+        os.path.abspath("reports"),
+    ]
+    for d in candidates:
+        if os.path.exists(d):
+            files = glob.glob(os.path.join(d, "*.pdf"))
+            if files:
+                return {os.path.splitext(os.path.basename(f))[0].upper() for f in files}
+    return set()
+
+
 @router.get("/watchlist", response_model=IndMoneyWatchlistResponse)
 async def indmoney_watchlist():
-    """Live watchlists from INDmoney."""
+    """Live watchlists from INDmoney with market classification and report availability."""
     raw: Dict[str, Any] = _handle(get_watchlist, "watchlist")
-    watchlists = [
-        WatchlistGroup(
-            name=wl["name"],
-            watchlist_id=wl["watchlist_id"],
-            stocks=[
-                WatchlistStock(ind_key=s.get("ind_key"), ticker=s.get("ticker"))
-                for s in wl.get("stocks", [])
-                if s.get("ticker")  # skip blank entries
-            ],
+    existing_reports = _get_existing_reports_set()
+    watchlists = []
+    
+    for wl in raw.get("watchlists", []):
+        stocks = []
+        us_c = 0
+        in_c = 0
+        for s in wl.get("stocks", []):
+            ticker = s.get("ticker")
+            if not ticker:
+                continue
+            ticker_clean = ticker.strip().upper()
+            ind_key = s.get("ind_key") or ""
+            market = _determine_stock_market(ticker_clean, ind_key)
+            if market == "india":
+                in_c += 1
+            else:
+                us_c += 1
+            has_report = ticker_clean in existing_reports
+            stocks.append(
+                WatchlistStock(
+                    ind_key=ind_key,
+                    ticker=ticker_clean,
+                    market=market,
+                    has_report=has_report,
+                )
+            )
+
+        watchlists.append(
+            WatchlistGroup(
+                name=wl["name"],
+                watchlist_id=wl["watchlist_id"],
+                stocks=stocks,
+                us_count=us_c,
+                india_count=in_c,
+            )
         )
-        for wl in raw.get("watchlists", [])
-    ]
+
     return IndMoneyWatchlistResponse(type=raw.get("type", "all"), watchlists=watchlists)
 
 

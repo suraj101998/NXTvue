@@ -4,9 +4,23 @@ import asyncio
 import json
 import logging
 import os
+import re
 import tempfile
 import time
 from typing import Any, AsyncGenerator, Dict, List, Optional
+
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+for _p in [
+    os.path.abspath(os.path.join(_base_dir, "../../../.env")),      # apps/backend/.env
+    os.path.abspath(os.path.join(_base_dir, "../../../../../.env")),  # root .env
+    os.path.join(os.getcwd(), "apps/backend/.env"),
+    os.path.join(os.getcwd(), ".env"),
+]:
+    if os.path.isfile(_p):
+        load_dotenv(_p)
 
 from fastapi import FastAPI, BackgroundTasks, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +31,8 @@ from ..config.settings import settings
 from ..auth.routes import router as auth_router
 from ..portfolio.routes import router as portfolio_router
 from ..portfolio.indmoney_routes import router as indmoney_router
+from .market_gateway import router as market_router
+from .india_data import router as india_router
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +55,8 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(portfolio_router, prefix="/api/v1")
 app.include_router(indmoney_router, prefix="/api/v1")
+app.include_router(market_router, prefix="/api/v1")
+app.include_router(india_router, prefix="/api/v1")
 
 # ---------------------------------------------------------------------------
 # In-memory cache for live indices (avoids hammering yfinance on every request)
@@ -232,30 +250,47 @@ async def health_check():
     )
 
 
-@app.get("/api/indices", response_model=IndicesData)
-@app.get("/api/v1/indices", response_model=IndicesData)
-async def get_indices():
-    """Get live market indices (NSE/BSE + US). Cached for `indices_cache_ttl` seconds."""
-    global _indices_cache, _indices_last_fetched
+_indices_lock: Optional[asyncio.Lock] = None
 
-    now = time.time()
+
+async def _get_indices_data() -> IndicesData:
+    """Return cached indices, refreshing at most once per TTL however many callers race.
+
+    The REST route and every websocket client share this, so concurrent callers
+    that find the cache stale wait on one yfinance fetch instead of each starting their own.
+    """
+    global _indices_cache, _indices_last_fetched, _indices_lock
+
+    if _indices_lock is None:
+        _indices_lock = asyncio.Lock()
     ttl = settings.indices_cache_ttl
 
-    if not _indices_cache or (now - _indices_last_fetched) > ttl:
-        # Run blocking yfinance call in a thread pool so we don't block the event loop
-        loop = asyncio.get_event_loop()
-        fresh = await loop.run_in_executor(None, _fetch_live_indices)
-        if fresh.get("india") or fresh.get("us"):
-            _indices_cache = fresh
-            _indices_last_fetched = now
+    if not _indices_cache or (time.time() - _indices_last_fetched) > ttl:
+        async with _indices_lock:
+            # Re-check: another caller may have refreshed while we waited for the lock
+            now = time.time()
+            if not _indices_cache or (now - _indices_last_fetched) > ttl:
+                # Run blocking yfinance call in a thread pool so we don't block the event loop
+                loop = asyncio.get_running_loop()
+                fresh = await loop.run_in_executor(None, _fetch_live_indices)
+                if fresh.get("india") or fresh.get("us"):
+                    _indices_cache = fresh
+                    _indices_last_fetched = now
 
     data = _indices_cache or {"india": [], "us": []}
     return IndicesData(
         india=[IndexQuote(**q) for q in data.get("india", [])],
         us=[IndexQuote(**q) for q in data.get("us", [])],
-        updated_at=int(_indices_last_fetched or now),
+        updated_at=int(_indices_last_fetched or time.time()),
         cache_ttl=ttl,
     )
+
+
+@app.get("/api/indices", response_model=IndicesData)
+@app.get("/api/v1/indices", response_model=IndicesData)
+async def get_indices():
+    """Get live market indices (NSE/BSE + US). Cached for `indices_cache_ttl` seconds."""
+    return await _get_indices_data()
 
 
 @app.websocket("/api/v1/ws/indices")
@@ -264,28 +299,8 @@ async def websocket_indices(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            # Get current indices data
-            now = time.time()
-            ttl = settings.indices_cache_ttl
-
-            global _indices_cache, _indices_last_fetched
-            if not _indices_cache or (now - _indices_last_fetched) > ttl:
-                loop = asyncio.get_event_loop()
-                fresh = await loop.run_in_executor(None, _fetch_live_indices)
-                if fresh.get("india") or fresh.get("us"):
-                    _indices_cache = fresh
-                    _indices_last_fetched = now
-
-            data = _indices_cache or {"india": [], "us": []}
-            indices_data = IndicesData(
-                india=[IndexQuote(**q) for q in data.get("india", [])],
-                us=[IndexQuote(**q) for q in data.get("us", [])],
-                updated_at=int(_indices_last_fetched or now),
-                cache_ttl=ttl,
-            )
-
-            await websocket.send_json(indices_data.model_dump())
-            await asyncio.sleep(5)  # Update every 5 seconds for testing (use ttl in production)
+            await websocket.send_json((await _get_indices_data()).model_dump())
+            await asyncio.sleep(5)  # push cadence only; data refresh is governed by the shared TTL
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
@@ -294,11 +309,23 @@ async def websocket_indices(websocket: WebSocket):
         await websocket.close()
 
 
+def _has_llm_api_key() -> bool:
+    return bool(
+        os.environ.get("BOB_API_KEY")
+        or os.environ.get("NVIDIA_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    )
+
+
 @app.post("/api/v1/analysis/stock", response_model=AnalysisResponse)
 async def analyze_stock(request: AnalysisRequest):
     """Run full investment analysis for a single stock (synchronous Bob call)."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     from ..report_generator import run_investment_analysis
     from ..pdf_writer import save_pdf
@@ -320,8 +347,7 @@ async def analyze_stock(request: AnalysisRequest):
     # Save PDF in reports/ directory
     pdf_path: Optional[str] = None
     try:
-        reports_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "reports")
-        os.makedirs(reports_dir, exist_ok=True)
+        reports_dir = _reports_dir()
         out_file = os.path.join(reports_dir, f"{request.ticker.upper()}.pdf")
         pdf_path = save_pdf(result["final_memo"], request.ticker, out_file)
     except Exception as exc:
@@ -341,8 +367,11 @@ async def analyze_stock(request: AnalysisRequest):
 @app.post("/api/v1/analysis/compare")
 async def analyze_compare(request: CompareRequest):
     """Run side-by-side comparison of two tickers (concurrent data fetch)."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     from ..report_generator import run_compare_analysis
     from ..pdf_writer import save_pdf
@@ -364,9 +393,7 @@ async def analyze_compare(request: CompareRequest):
 
     pdf_path: Optional[str] = None
     try:
-        reports_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "reports")
-        os.makedirs(reports_dir, exist_ok=True)
-        a, b = request.ticker_a.upper(), request.ticker_b.upper()
+        reports_dir = _reports_dir()
         out_file = os.path.join(reports_dir, f"{a}_vs_{b}.pdf")
         pdf_path = save_pdf(result["final_memo"], f"{a} vs {b}", out_file)
     except Exception as exc:
@@ -378,8 +405,11 @@ async def analyze_compare(request: CompareRequest):
 @app.post("/api/v1/analysis/portfolio")
 async def analyze_portfolio(request: PortfolioRequest):
     """Analyze a portfolio from an inline holdings list."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     import pandas as pd
     from ..report_generator import run_portfolio_analysis
@@ -409,8 +439,7 @@ async def analyze_portfolio(request: PortfolioRequest):
 
     pdf_path: Optional[str] = None
     try:
-        reports_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "reports")
-        os.makedirs(reports_dir, exist_ok=True)
+        reports_dir = _reports_dir()
         out_file = os.path.join(reports_dir, "PORTFOLIO.pdf")
         pdf_path = save_pdf(memo.strip(), "PORTFOLIO", out_file)
     except Exception as exc:
@@ -425,6 +454,134 @@ async def analyze_portfolio(request: PortfolioRequest):
     }
 
 
+@app.get("/api/v1/reports")
+async def list_reports():
+    """List all available generated reports with status."""
+    reports_dir = _reports_dir()
+    if not os.path.exists(reports_dir):
+        return {"reports": []}
+    files = [
+        f for f in os.listdir(reports_dir)
+        if f.endswith(".pdf") and not f.startswith(".")
+    ]
+    reports = []
+    for f in sorted(files):
+        ticker = os.path.splitext(f)[0].upper()
+        f_path = os.path.join(reports_dir, f)
+        stat = os.stat(f_path)
+        reports.append({
+            "filename": f,
+            "ticker": ticker,
+            "size": stat.st_size,
+            "updated_at": stat.st_mtime,
+            "url": f"/api/v1/reports/{f}",
+        })
+    return {"reports": reports}
+
+
+@app.get("/api/v1/analysis/{ticker:path}")
+async def get_analysis_data(ticker: str):
+    """Retrieve full structured analysis data parsed dynamically from generated PDF report."""
+    import urllib.parse
+    raw_ticker = urllib.parse.unquote(ticker)
+    safe_ticker = raw_ticker.strip().upper()
+    reports_dir = _reports_dir()
+    pdf_path = os.path.join(reports_dir, f"{safe_ticker}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail=f"No generated report found for {safe_ticker}")
+
+    import pypdf
+    try:
+        reader = pypdf.PdfReader(pdf_path)
+        clean = "\n".join([p.extract_text() or "" for p in reader.pages])
+        clean = re.sub(r"Page\s+\d+\s+of\s+\d+", "", clean)
+        clean = re.sub(r"Generated by StocksAgent[^\n]*", "", clean)
+
+        # 1. Header
+        title_m = re.search(r"^(.*?)\s*:\s*(.*?)\s*Investment View", clean, re.MULTILINE)
+        raw_title = title_m.group(1).strip() if title_m else safe_ticker
+        subtitle = f"{title_m.group(2).strip()} Investment View" if title_m else "Investment View"
+
+        t_match = re.search(r"\(([A-Z0-9.\-]+)\)", raw_title)
+        if t_match:
+            symbol = t_match.group(1)
+            name = raw_title.replace(f"({symbol})", "").strip()
+        else:
+            tokens = raw_title.split()
+            symbol = tokens[0] if tokens else safe_ticker
+            name = " ".join(tokens[1:]) if len(tokens) > 1 else symbol
+
+        # 2. Executive summary
+        jm = re.search(r"My judgement:\s*(.*?)(?=\nBusiness outlook:|\nStock valuation:|\n\n)", clean, re.DOTALL)
+        judgement_text = jm.group(1).replace("\n", " ").strip() if jm else ""
+
+        out_m = re.search(r"Business outlook:\s*(.*?)(?=\nStock valuation:)", clean, re.DOTALL)
+        val_m = re.search(r"Stock valuation:\s*(.*?)(?=\nRisk-adjusted view:)", clean, re.DOTALL)
+        risk_m = re.search(r"Risk-adjusted view:\s*(.*?)(?=\nLow-risk conclusion:|\nTags used below:|\n\n)", clean, re.DOTALL)
+        conc_m = re.search(r"Low-risk conclusion:\s*(.*?)(?=\nTags used below:|\n1\.|\n\n)", clean, re.DOTALL)
+
+        exec_summary = []
+        if out_m:
+            exec_summary.append({"label": "Business outlook", "text": out_m.group(1).replace("\n", " ").strip()})
+        if val_m:
+            exec_summary.append({"label": "Stock valuation", "text": val_m.group(1).replace("\n", " ").strip()})
+        if risk_m:
+            exec_summary.append({"label": "Risk-adjusted view", "text": risk_m.group(1).replace("\n", " ").strip()})
+
+        summary_note = conc_m.group(1).replace("\n", " ").strip() if conc_m else ""
+
+        # 3. Canonical Sections extraction
+        canonical_headers = [
+            ("1. Business Quality and Sector Positioning", r"(?:1\.\s+)?Business quality and sector positioning"),
+            ("2. Financial Performance", r"(?:2\.\s+)?Financial performance"),
+            ("3. Balance-Sheet Analysis", r"(?:3\.\s+)?Balance-?sheet analysis"),
+            ("4. Order Book and Revenue Visibility", r"(?:4\.\s+)?Order book and revenue visibility"),
+            ("5. Shareholding Pattern", r"(?:5\.\s+)?Shareholding pattern"),
+            ("6. Valuation", r"(?:6\.\s+)?Valuation\b"),
+            ("7. Target Projections", r"(?:7\.\s+)?(?:My\s+)?(?:end-[0-9a-zA-Z\s-]+|Target)\s*projection"),
+            ("8. Growth Potential", r"(?:8\.\s+)?Does the company still have potential to grow"),
+            ("9. Key Risks", r"(?:9\.\s+)?Key risks"),
+            ("10. Bullish Triggers", r"(?:10\.\s+)?What would make me (?:more\s+)?bullish"),
+            ("11. Bearish Triggers", r"(?:11\.\s+)?What would make me (?:more\s+)?bearish"),
+            ("12. Technical Trading Signals", r"(?:12\.\s+)?Technical trading signals"),
+            ("13. Final Investment Judgement", r"(?:13\.\s+)?Final investment judgement"),
+        ]
+
+        anchors = []
+        for title, pat in canonical_headers:
+            m = re.search(r"(?:^|\n)\s*(?:(?:\d+\.|\*|\#+)\s*)?(" + pat + r")[^\n]*", clean, re.IGNORECASE)
+            if m:
+                anchors.append((m.start(), m.end(), title))
+
+        anchors.sort(key=lambda x: x[0])
+        sections_list = []
+        for i, (start, end, title) in enumerate(anchors):
+            next_start = anchors[i + 1][0] if i + 1 < len(anchors) else len(clean)
+            body = clean[end:next_start].strip()
+            body = re.sub(r"Disclaimer:[^\n]*", "", body).strip()
+            sections_list.append({
+                "title": title,
+                "content": body,
+            })
+
+        return {
+            "symbol": symbol,
+            "name": name,
+            "subtitle": subtitle,
+            "analysisDoc": f"Analysis: {symbol}.pdf",
+            "pdfUrl": f"/api/v1/reports/{symbol}.pdf",
+            "judgementTag": judgement_text.split(".")[0] if "." in judgement_text else judgement_text[:80],
+            "judgementText": judgement_text,
+            "executiveSummary": exec_summary,
+            "summaryNote": summary_note,
+            "sections": sections_list,
+            "full_text": clean,
+        }
+    except Exception as exc:
+        logger.error("Failed to parse report PDF for %s: %s", safe_ticker, exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.get("/api/v1/reports/{filename}")
 async def get_report(filename: str):
     """Serve generated PDF reports."""
@@ -432,7 +589,11 @@ async def get_report(filename: str):
     safe_name = os.path.basename(filename)
     if safe_name != filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename.")
-    filepath = os.path.join("reports", safe_name)
+    reports_dir = _reports_dir()
+    filepath = os.path.join(reports_dir, safe_name)
+    if not os.path.exists(filepath):
+        # Fallback to local 'reports' if different
+        filepath = os.path.join("reports", safe_name)
     if os.path.exists(filepath):
         return FileResponse(filepath, media_type="application/pdf")
     raise HTTPException(status_code=404, detail="Report not found.")
@@ -455,9 +616,19 @@ def _sse(data: dict) -> str:
 
 
 def _reports_dir() -> str:
-    base = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "reports")
-    os.makedirs(base, exist_ok=True)
-    return os.path.abspath(base)
+    # First check apps/backend/reports, then repo root reports
+    candidates = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "reports")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "reports")),
+        os.path.abspath("reports"),
+    ]
+    for c in candidates:
+        if os.path.exists(c) and any(f.endswith(".pdf") for f in os.listdir(c)):
+            return c
+    # Fallback to creating/returning apps/backend/reports
+    primary = candidates[0]
+    os.makedirs(primary, exist_ok=True)
+    return primary
 
 
 def _default_holdings_path() -> str:
@@ -510,17 +681,21 @@ async def stream_stock(
     year:   int = Query(2026,    description="Projection year"),
 ):
     """Stream a single-stock investment analysis as SSE events."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     async def generate() -> AsyncGenerator[str, None]:
         from ..report_generator import (
             _load_data, _compact_data, REPORT_SYSTEM_PROMPT, _run_bob
         )
         from ..pdf_writer import save_pdf
+        import urllib.parse
 
         loop = asyncio.get_event_loop()
-        t = ticker.strip().upper()
+        t = urllib.parse.unquote(ticker).strip().upper()
         m = market.strip().lower()
 
         yield _sse({"status": "fetching", "message": "Fetching financial data…", "progress": 10})
@@ -569,8 +744,11 @@ async def stream_compare(
     year: int = Query(2026,    description="Projection year"),
 ):
     """Stream a side-by-side comparison analysis as SSE events."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     async def generate() -> AsyncGenerator[str, None]:
         import concurrent.futures
@@ -637,8 +815,11 @@ async def stream_portfolio_upload(
     year: int = Query(2026, description="Projection year"),
 ):
     """Stream a portfolio analysis from an uploaded holdings file as SSE events."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     # Read the file into a temp file synchronously before entering the generator
     suffix = ".xlsx" if (file.filename or "").endswith(".xlsx") else ".csv"
@@ -677,8 +858,11 @@ async def stream_portfolio_default(
     year: int = Query(2026, description="Projection year"),
 ):
     """Stream a portfolio analysis using the server-side holdings.xlsx as SSE events."""
-    if not os.environ.get("BOB_API_KEY"):
-        raise HTTPException(status_code=503, detail="BOB_API_KEY is not configured on the server.")
+    if not _has_llm_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="No LLM API key found in your local .env file. Please ensure BOB_API_KEY or NVIDIA_API_KEY is defined in apps/backend/.env.",
+        )
 
     async def generate() -> AsyncGenerator[str, None]:
         from ..portfolio_analyser import load_holdings
@@ -713,10 +897,60 @@ Never output fluff or generic disclaimers. Give structured bullet points or para
 
 
 def _generate_copilot_reply(messages: List[ChatMessage], context: Optional[Dict[str, Any]] = None) -> str:
-    """Generate dynamic AI reply using Bob Shell if available, or intelligent financial engine."""
+    """Generate dynamic AI reply using Gemini, Bob Shell, or intelligent financial engine."""
     last_user_message = next((m.content for m in reversed(messages) if m.role == "user"), "")
     
-    # Try Bob LLM if available
+    # 1. Try Gemini API first if configured
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if gemini_key:
+        try:
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client(api_key=gemini_key)
+            model_name = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+            
+            # Format context and history for Gemini
+            contents = []
+            if context:
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=f"Active Portfolio / Asset Context:\n{json.dumps(context, indent=2)}")]
+                    )
+                )
+                contents.append(
+                    types.Content(
+                        role="model",
+                        parts=[types.Part.from_text(text="Understood. I will use this asset and market context in my analysis.")]
+                    )
+                )
+
+            for m in messages[-8:]:
+                role = "user" if m.role == "user" else "model"
+                contents.append(
+                    types.Content(
+                        role=role,
+                        parts=[types.Part.from_text(text=m.content)]
+                    )
+                )
+
+            config = types.GenerateContentConfig(
+                system_instruction=_CHAT_SYSTEM_PROMPT,
+                temperature=0.4,
+            )
+
+            response = client.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config=config,
+            )
+            if response and response.text:
+                return response.text.strip()
+        except Exception as exc:
+            logger.warning("Gemini copilot chat execution error: %s", exc)
+
+    # 2. Try Bob LLM if available
     if os.environ.get("BOB_API_KEY"):
         try:
             from ..report_generator import _run_bob
@@ -842,6 +1076,7 @@ async def update_user_settings(settings: UserSettingsModel):
     """Update user preferences & settings."""
     _user_settings_db["default"] = settings.model_dump()
     return {"status": "success", "settings": _user_settings_db["default"]}
+
 
 
 if __name__ == "__main__":

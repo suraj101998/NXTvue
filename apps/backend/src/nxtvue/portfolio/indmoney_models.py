@@ -150,12 +150,18 @@ class NetWorthSnapshot(BaseModel):
 class WatchlistStock(BaseModel):
     ind_key: Optional[str] = None
     ticker: Optional[str] = None
+    market: str = "us"  # "india" or "us"
+    has_report: bool = False
+    price: Optional[float] = None
+    change_pct: Optional[float] = None
 
 
 class WatchlistGroup(BaseModel):
     name: str
     watchlist_id: int
     stocks: List[WatchlistStock]
+    us_count: int = 0
+    india_count: int = 0
 
 
 class IndMoneyWatchlistResponse(BaseModel):

@@ -224,7 +224,26 @@ def _restore_global_mcp(original: Optional[dict]) -> None:
         logger.debug("Could not restore MCP config: %s", exc)
 
 
-def _run_bob(prompt: str) -> str:
+def _run_nvidia(prompt: str) -> str:
+    """Run report generation via NVIDIA NIM API."""
+    import openai
+    api_key = os.environ.get("NVIDIA_API_KEY")
+    if not api_key:
+        raise RuntimeError("NVIDIA_API_KEY is not configured.")
+    model = os.environ.get("MODEL_NAME", "nvidia/nemotron-3-super-120b-a12b")
+    client = openai.OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=api_key)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=float(os.environ.get("TEMPERATURE", "0.6")),
+        top_p=float(os.environ.get("TOP_P", "0.95")),
+        max_tokens=int(os.environ.get("MAX_TOKENS", "16384")),
+    )
+    res = response.choices[0].message.content or ""
+    return res.strip()
+
+
+def _run_bob_direct(prompt: str) -> str:
     """Run Bob Shell and return only its assistant response."""
     if not shutil.which("bob"):
         raise RuntimeError(
@@ -270,6 +289,35 @@ def _run_bob(prompt: str) -> str:
     if not output:
         raise RuntimeError("Bob Shell returned an empty report.")
     return output
+
+
+def _run_bob(prompt: str) -> str:
+    """Run generation using active LLM provider (Bob Shell or NVIDIA)."""
+    use_bob = os.environ.get("USE_BOB", "true").lower() not in ("false", "0", "no")
+    use_nvidia = os.environ.get("USE_NVIDIA", "false").lower() in ("true", "1", "yes")
+
+    # Prefer Bob Shell if enabled, installed, and configured
+    if use_bob and shutil.which("bob") and os.environ.get("BOB_API_KEY"):
+        try:
+            return _run_bob_direct(prompt)
+        except Exception as exc:
+            logger.warning("Bob Shell failed: %s. Attempting fallback…", exc)
+            if os.environ.get("NVIDIA_API_KEY"):
+                return _run_nvidia(prompt)
+            raise
+
+    # Otherwise try NVIDIA API if explicitly active
+    if use_nvidia and os.environ.get("NVIDIA_API_KEY"):
+        try:
+            return _run_nvidia(prompt)
+        except Exception as exc:
+            logger.debug("NVIDIA NIM attempt failed: %s", exc)
+
+    # Fallback to Bob Shell if available
+    if shutil.which("bob") and os.environ.get("BOB_API_KEY"):
+        return _run_bob_direct(prompt)
+
+    raise RuntimeError("No working LLM generation provider. Ensure BOB_API_KEY is set.")
 
 
 def run_investment_analysis(
