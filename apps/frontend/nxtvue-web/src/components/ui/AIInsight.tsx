@@ -17,10 +17,10 @@ export const AIInsight = forwardRef<HTMLDivElement, AIInsightProps>(
     const [expanded, setExpanded] = useState(defaultExpanded)
 
     const typeConfig = {
-      insight: { icon: Brain, color: 'text-blue-400', bg: 'bg-blue-400/5', border: 'border-blue-400/20', label: 'NXTvue INSIGHT' },
-      analysis: { icon: Search, color: 'text-indigo-400', bg: 'bg-indigo-400/5', border: 'border-indigo-400/20', label: 'ANALYSIS' },
-      recommendation: { icon: Sparkles, color: 'text-green-400', bg: 'bg-green-400/5', border: 'border-green-400/20', label: 'RECOMMENDATION' },
-      alert: { icon: Zap, color: 'text-amber-400', bg: 'bg-amber-400/5', border: 'border-amber-400/20', label: 'ALERT' },
+      insight: { icon: Brain, color: 'text-blue-600', bg: 'bg-blue-400/5', border: 'border-blue-400/20', label: 'NXTvue INSIGHT' },
+      analysis: { icon: Search, color: 'text-indigo-600', bg: 'bg-indigo-400/5', border: 'border-indigo-400/20', label: 'ANALYSIS' },
+      recommendation: { icon: Sparkles, color: 'text-green-600', bg: 'bg-green-400/5', border: 'border-green-400/20', label: 'RECOMMENDATION' },
+      alert: { icon: Zap, color: 'text-amber-600', bg: 'bg-amber-400/5', border: 'border-amber-400/20', label: 'ALERT' },
     }
 
     const config = typeConfig[type]

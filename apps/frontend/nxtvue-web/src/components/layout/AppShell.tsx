@@ -16,15 +16,16 @@ export function AppShell({ className, hideHeader = false, children }: AppShellPr
   const location = useLocation()
   const isDashboard = location.pathname === '/dashboard' || location.pathname === '/'
   const shouldHideHeader = hideHeader || isDashboard
+  const showTicker = location.pathname.startsWith('/chart')
 
   return (
-    <div className={cn('min-h-screen', isDashboard ? 'bg-[#F5F5F5]' : 'bg-bg-primary', className)}>
+    <div className={cn('min-h-screen', isDashboard ? 'bg-[#F5F5F5]' : 'bg-bg-primary text-text-primary', className)}>
       <OfflineBanner />
       <ToastContainer />
-      {!shouldHideHeader && <Header />}
+      {!shouldHideHeader && <Header showTicker={showTicker} />}
       <main
         id="main-content"
-        className={cn(!shouldHideHeader && 'pt-14 lg:pt-[60px]')}
+        className={cn(!shouldHideHeader && (showTicker ? 'pt-32 lg:pt-[136px]' : 'pt-14 lg:pt-[68px]'))}
         role="main"
       >
         <ErrorBoundary sectionName="Page Content">
@@ -32,7 +33,7 @@ export function AppShell({ className, hideHeader = false, children }: AppShellPr
         </ErrorBoundary>
       </main>
       {!isDashboard && (
-        <footer className="border-t border-border-subtle bg-bg-secondary/50">
+        <footer className="border-t border-slate-200 bg-white">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <p className="text-text-muted text-sm">

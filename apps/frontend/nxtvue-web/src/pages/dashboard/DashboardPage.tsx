@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, Sparkles } from 'lucide-react'
 import { useAuth } from '@/auth/AuthContext'
 import { useIndices } from '@/hooks/useIndices'
 import { NxtVueChatbot } from '@/components/dashboard/NxtVueChatbot'
 import { QuickStockSearchModal } from '@/components/dashboard/QuickStockSearchModal'
-import { MarketOverviewSection, IndiaFlagIcon, USFlagIcon } from '@/components/dashboard/MarketOverviewSection'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { MarketOverviewSection, USFlagIcon } from '@/components/dashboard/MarketOverviewSection'
+import { IndiaPulseSection } from '@/components/dashboard/IndiaPulseSection'
+import { GlobalMarketsSection } from '@/components/dashboard/GlobalMarketsSection'
 
 const LogoIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -36,10 +38,9 @@ export function DashboardPage() {
   }
 
   const navItems = [
+    { label: 'Charts', path: '/chart' },
     { label: 'Analyze', path: '/analysis' },
-    { label: 'Reports', path: '/analysis/history' },
     { label: 'My Portfolio', path: '/portfolio' },
-    { label: 'Settings', path: '/settings' },
     { label: 'About', path: '/about' },
   ]
 
@@ -92,6 +93,7 @@ export function DashboardPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                <NotificationBell />
                 <button
                   onClick={() => navigate('/pricing')}
                   className="bg-black text-white text-base font-medium px-7 py-2.5 rounded-full hover:bg-emerald-600 active:scale-95 transition-all duration-200 cursor-pointer"
@@ -134,13 +136,10 @@ export function DashboardPage() {
                 </p>
                 
                 <button
-                  onClick={() => setIsSearchOpen(true)}
-                  className="inline-flex items-center gap-3 bg-black text-white text-base md:text-lg font-medium pl-8 pr-2 py-2 rounded-full hover:bg-blue-800 transition-colors duration-200 cursor-pointer group"
+                  onClick={() => navigate('/portfolio')}
+                  className="inline-flex items-center gap-3 bg-black text-white text-base md:text-lg font-medium px-8 py-3 rounded-full hover:bg-blue-800 transition-colors duration-200 cursor-pointer group"
                 >
                   Analyze Your Portfolio
-                  <span className="bg-white rounded-full p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <ArrowRight className="w-5 h-5 text-black" />
-                  </span>
                 </button>
 
                 {/* Marquee ticker track */}
@@ -160,7 +159,6 @@ export function DashboardPage() {
                         <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap uppercase" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.12em', fontSize: '13px' }}>INDMoney</span>
                         <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap" style={{ fontFamily: 'Palatino, "Book Antiqua", serif', fontWeight: 400, letterSpacing: '-0.01em', fontSize: '16px' }}>Groww</span>
                         <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap" style={{ fontFamily: 'Impact, "Arial Narrow", sans-serif', fontWeight: 400, letterSpacing: '0.04em', fontSize: '14px' }}>Screener</span>
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap" style={{ fontFamily: 'Verdana, sans-serif', fontWeight: 700, letterSpacing: '-0.03em', fontSize: '13px' }}>Chainlink</span>
                       </div>
                     ))}
                   </div>
@@ -182,18 +180,15 @@ export function DashboardPage() {
                   Meet Agent NxtVue.
                 </h2>
                 <button
-                  onClick={() => navigate('/portfolio')}
-                  className="inline-flex items-center gap-3 bg-black text-white text-base font-medium pl-8 pr-2 py-2 rounded-full hover:bg-blue-800 transition-colors duration-200 cursor-pointer group"
+                  onClick={() => navigate('/portfolio?tab=watchlist')}
+                  className="inline-flex items-center gap-3 bg-black text-white text-base font-medium px-8 py-3 rounded-full hover:bg-blue-800 transition-colors duration-200 cursor-pointer group"
                 >
                   View Your Watchlist
-                  <span className="bg-white rounded-full p-2 flex items-center justify-center group-hover:scale-105 transition-transform">
-                    <ArrowRight className="w-4 h-4 text-black" />
-                  </span>
                 </button>
               </div>
               <div>
                 <p className="text-black/70 text-2xl md:text-3xl leading-relaxed font-normal">
-                  USD NxtVue is a reward-earning dollar coin that lets your savings grow while remaining tied to the U.S. dollar.
+                  Agent NxtVue tracks your Indian and US holdings, watches the markets and explains what moved, so you can decide with the full picture.
                 </p>
               </div>
             </div>
@@ -237,13 +232,14 @@ export function DashboardPage() {
                       value={quickTicker}
                       onChange={(e) => setQuickTicker(e.target.value)}
                       placeholder="Ticker (RELIANCE, NVDA)..."
-                      className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-black shadow-sm"
+                      className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-black placeholder:text-black/60 focus:outline-none focus:ring-2 focus:ring-black shadow-sm"
                     />
                   </div>
 
                   {/* 2. Market Dropdown */}
                   <div>
                     <select
+                      aria-label="Market"
                       value={quickMarket}
                       onChange={(e) => setQuickMarket(e.target.value as 'india' | 'us')}
                       className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2 py-1.5 text-[14px] font-semibold text-black focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
@@ -256,6 +252,7 @@ export function DashboardPage() {
                   {/* 3. Duration Dropdown */}
                   <div>
                     <select
+                      aria-label="Projection horizon"
                       value={quickYear}
                       onChange={(e) => setQuickYear(Number(e.target.value))}
                       className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2 py-1.5 text-[14px] font-semibold text-black focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
@@ -267,16 +264,23 @@ export function DashboardPage() {
                     </select>
                   </div>
 
-                  {/* 4. Analyze Your Stock Button - Centered */}
-                  <div className="flex justify-center pt-1.5">
+                  {/* 4. Action Buttons (View Live Chart & Analyze) */}
+                  <div className="flex gap-2 pt-1.5 w-full">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ticker = quickTicker.trim() || (quickMarket === 'india' ? 'RELIANCE' : 'NVDA')
+                        navigate(`/chart/${encodeURIComponent(ticker.toUpperCase())}?market=${quickMarket}`)
+                      }}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-black text-white text-[12px] font-semibold px-3 py-2 rounded-full hover:bg-yellow-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer"
+                    >
+                      <span>View Chart</span>
+                    </button>
                     <button
                       type="submit"
-                      className="w-[88%] max-w-[240px] inline-flex items-center justify-center gap-2.5 bg-black text-white text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-emerald-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer group/btn"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-black text-white text-[12px] font-semibold px-3 py-2 rounded-full hover:bg-emerald-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer group/btn"
                     >
-                      <span className="whitespace-nowrap">Analyze Your Stock</span>
-                      <span className="bg-white rounded-full p-1.5 flex items-center justify-center shadow-sm shrink-0">
-                        <ArrowRight className="w-3.5 h-3.5 text-black group-hover/btn:translate-x-1 transition-transform duration-200" />
-                      </span>
+                      <span className="whitespace-nowrap">AI Report</span>
                     </button>
                   </div>
                 </form>
@@ -326,7 +330,7 @@ export function DashboardPage() {
                             <span className="text-[11px] font-medium text-white/90 group-hover/item:text-white transition-colors leading-normal tracking-tight">
                               {idx.name}
                             </span>
-                            <span className="text-[9px] text-white/40 group-hover/item:text-white/50 font-mono mt-0.5">
+                            <span className="text-[10px] text-white/60 group-hover/item:text-white/70 font-mono mt-0.5">
                               {idx.value.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                             </span>
                           </div>
@@ -334,7 +338,7 @@ export function DashboardPage() {
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5 ${
                               isPositive
                                 ? 'bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 shadow-[0_2px_8px_rgba(16,185,129,0.05)]'
-                                : 'bg-rose-500/10 border border-rose-500/10 text-rose-400 shadow-[0_2px_8px_rgba(244,63,94,0.05)]'
+                                : 'bg-rose-500/10 border border-rose-500/10 text-rose-300 shadow-[0_2px_8px_rgba(244,63,94,0.05)]'
                             }`}
                           >
                             {isPositive ? '+' : ''}{idx.changePct.toFixed(2)}%
@@ -383,7 +387,7 @@ export function DashboardPage() {
                             <span className="text-[11px] font-medium text-white/90 group-hover/item:text-white transition-colors leading-normal tracking-tight">
                               {idx.name}
                             </span>
-                            <span className="text-[9px] text-white/40 group-hover/item:text-white/50 font-mono mt-0.5">
+                            <span className="text-[10px] text-white/60 group-hover/item:text-white/70 font-mono mt-0.5">
                               {idx.value.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                             </span>
                           </div>
@@ -391,7 +395,7 @@ export function DashboardPage() {
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-0.5 ${
                               isPositive
                                 ? 'bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 shadow-[0_2px_8px_rgba(16,185,129,0.05)]'
-                                : 'bg-rose-500/10 border border-rose-500/10 text-rose-400 shadow-[0_2px_8px_rgba(244,63,94,0.05)]'
+                                : 'bg-rose-500/10 border border-rose-500/10 text-rose-300 shadow-[0_2px_8px_rgba(244,63,94,0.05)]'
                             }`}
                           >
                             {isPositive ? '+' : ''}{idx.changePct.toFixed(2)}%
@@ -411,7 +415,7 @@ export function DashboardPage() {
           <div className="max-w-[88rem] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 items-center border-y border-black/5 py-8">
             <div className="col-span-1">
               <p className="text-black/70 text-base leading-relaxed whitespace-pre-line font-medium">
-                Funded by premier partners{'\n'}and forward-thinking leaders.
+                Powered by trusted{'\n'}market data sources.
               </p>
             </div>
             <div
@@ -424,14 +428,13 @@ export function DashboardPage() {
               <div className="backers-track">
                 {[1, 2].map((loopIndex) => (
                   <div key={loopIndex} className="flex items-center">
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap" style={{ fontFamily: '"Times New Roman", serif', fontWeight: 400, letterSpacing: '0.02em', fontSize: '14px' }}>BSE</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap uppercase" style={{ fontFamily: '"Arial Black", sans-serif', fontWeight: 900, letterSpacing: '0.08em', fontSize: '16px' }}>NSE</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap" style={{ fontFamily: 'Impact, sans-serif', fontWeight: 700, letterSpacing: '0.05em', fontSize: '18px' }}>IndMoney</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap" style={{ fontFamily: 'Georgia, serif', fontWeight: 600, letterSpacing: '-0.02em', fontSize: '17px' }}>Groww</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap" style={{ fontFamily: 'Helvetica, sans-serif', fontWeight: 700, letterSpacing: '-0.01em', fontSize: '15px' }}>Yahoo Finance</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap uppercase" style={{ fontFamily: 'Verdana, sans-serif', fontWeight: 700, letterSpacing: '0.06em', fontSize: '14px' }}>Screener</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.18em', fontSize: '14px' }}>BondScanner</span>
-                    <span className="mx-10 shrink-0 text-black/50 whitespace-nowrap" style={{ fontFamily: 'Palatino, serif', fontWeight: 500, letterSpacing: '0.03em', fontSize: '15px' }}>Polychain</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: '"Times New Roman", serif', fontWeight: 400, letterSpacing: '0.02em', fontSize: '14px' }}>BSE</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap uppercase" style={{ fontFamily: '"Arial Black", sans-serif', fontWeight: 900, letterSpacing: '0.08em', fontSize: '16px' }}>NSE</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: 'Impact, sans-serif', fontWeight: 700, letterSpacing: '0.05em', fontSize: '18px' }}>IndMoney</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: 'Georgia, serif', fontWeight: 600, letterSpacing: '-0.02em', fontSize: '17px' }}>Groww</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: 'Helvetica, sans-serif', fontWeight: 700, letterSpacing: '-0.01em', fontSize: '15px' }}>Yahoo Finance</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap uppercase" style={{ fontFamily: 'Verdana, sans-serif', fontWeight: 700, letterSpacing: '0.06em', fontSize: '14px' }}>Screener</span>
+                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.18em', fontSize: '14px' }}>BondScanner</span>
                   </div>
                 ))}
               </div>
@@ -441,6 +444,12 @@ export function DashboardPage() {
 
         {/* Section 4: Live Market Overview Section (Transformed from Use Modes) */}
         <MarketOverviewSection />
+
+        {/* Section 4b: NSE pulse (India VIX, breadth, movers, FII/DII, sectors) */}
+        <IndiaPulseSection />
+
+        {/* Section 5: TradingView world map + economic map */}
+        <GlobalMarketsSection />
 
         {/* AI Chatbot Floating Component */}
         <NxtVueChatbot />

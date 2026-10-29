@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="w-full py-12 px-6 flex items-center justify-center">
           <div className="max-w-lg w-full bg-[rgba(10,14,28,0.9)] backdrop-blur-2xl border border-red-500/20 rounded-3xl p-8 shadow-2xl text-center">
-            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6 text-red-400">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6 text-red-600">
               <AlertTriangle className="w-8 h-8" />
             </div>
 
@@ -97,7 +97,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {error && (
-              <div className="text-left border-t border-white/[0.08] pt-4 mt-2">
+              <div className="text-left border-t border-slate-200 pt-4 mt-2">
                 <button
                   type="button"
                   onClick={this.toggleDetails}
@@ -108,7 +108,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 </button>
 
                 {showDetails && (
-                  <div className="mt-2 p-3 bg-black/40 border border-white/[0.06] rounded-xl overflow-x-auto text-[11px] font-mono text-red-300/90 leading-normal max-h-48 overflow-y-auto">
+                  <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl overflow-x-auto text-[11px] font-mono text-red-700 leading-normal max-h-48 overflow-y-auto">
                     <p className="font-bold">{error.toString()}</p>
                     {errorInfo?.componentStack && (
                       <pre className="mt-2 text-text-muted text-[10px] whitespace-pre-wrap">

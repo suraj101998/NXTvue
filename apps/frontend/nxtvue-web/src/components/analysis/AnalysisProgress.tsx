@@ -51,13 +51,13 @@ export function AnalysisProgress({ status, message, progress = 0, className }: A
         {/* Icon */}
         <div className="flex-shrink-0 mt-0.5">
           {status === 'complete' && (
-            <CheckCircle className="w-6 h-6 text-green-400" />
+            <CheckCircle className="w-6 h-6 text-green-600" />
           )}
           {status === 'error' && (
-            <AlertCircle className="w-6 h-6 text-red-400" />
+            <AlertCircle className="w-6 h-6 text-red-600" />
           )}
           {(status === 'fetching' || status === 'analyzing') && (
-            <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
           )}
         </div>
 
@@ -109,7 +109,7 @@ function Phase({ label, active, done }: { label: string; active: boolean; done: 
       <span
         className={cn(
           'text-xs transition-colors duration-300',
-          done ? 'text-green-400' : active ? 'text-blue-400 font-medium' : 'text-text-secondary',
+          done ? 'text-green-600' : active ? 'text-blue-600 font-medium' : 'text-text-secondary',
         )}
       >
         {label}

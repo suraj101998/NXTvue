@@ -1,0 +1,57 @@
+{
+  "created_by": "trader-scanner",
+  "created_at": "2026-10-29T07:50:34Z",
+  "mode": "daily",
+  "as_of": "2026-10-28 close",
+  "universe": 100,
+  "scanned": 29,
+  "failed": 0,
+  "source": "yahoo",
+  "filters": {
+    "min_price": 5.0,
+    "min_volume": 1000000
+  },
+  "note": "A scan is a list of charts that match a rule, not a list of stocks to buy.",
+  "hits": [
+    {
+      "symbol": "ADI",
+      "setups": [
+        "breakout_20d"
+      ],
+      "price": 428.27,
+      "close_date": "2026-10-28",
+      "rsi": 64.8,
+      "volume": 3720482
+    },
+    {
+      "symbol": "A",
+      "setups": [
+        "breakout_20d"
+      ],
+      "price": 181.48,
+      "close_date": "2026-10-28",
+      "rsi": 67.0,
+      "volume": 1550477
+    },
+    {
+      "symbol": "ABSI",
+      "setups": [
+        "breakout_20d"
+      ],
+      "price": 11.88,
+      "close_date": "2026-10-28",
+      "rsi": 64.6,
+      "volume": 5805907
+    },
+    {
+      "symbol": "ADMA",
+      "setups": [
+        "breakout_20d"
+      ],
+      "price": 11.28,
+      "close_date": "2026-10-28",
+      "rsi": 66.9,
+      "volume": 2664528
+    }
+  ]
+}

@@ -54,7 +54,7 @@ export function Modal({ open, onClose, title, description, children, size = 'md'
   const modalContent = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}

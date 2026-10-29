@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, X, Send, Trash2, ArrowUpRight } from 'lucide-react'
+import { X, Send, Trash2 } from 'lucide-react'
 import { useAIChat } from '@/hooks/useAIChat'
 import { cn } from '@/utils/cn'
 
@@ -46,18 +46,15 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-6 right-6 z-[500] w-[calc(100vw-3rem)] sm:w-[440px] h-[580px] max-h-[82vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col bg-[rgba(6,10,24,0.96)] backdrop-blur-3xl border border-white/[0.14]"
+          className="fixed bottom-6 right-6 z-[500] w-[calc(100vw-3rem)] sm:w-[440px] h-[580px] max-h-[82vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col bg-white backdrop-blur-3xl border border-slate-300"
         >
           {/* Header */}
-          <div className="px-5 py-4 bg-white/[0.04] border-b border-white/[0.08] flex items-center justify-between">
+          <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
+                            <div>
                 <h3 className="font-heading font-semibold text-text-primary text-sm flex items-center gap-2">
                   NXTvue AI Copilot
-                  <span className="px-1.5 py-0.5 text-[10px] font-mono bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
+                  <span className="px-1.5 py-0.5 text-[10px] font-mono bg-blue-500/20 text-blue-600 rounded-full border border-blue-500/30">
                     Live
                   </span>
                 </h3>
@@ -68,7 +65,7 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
               <button
                 type="button"
                 onClick={clearChat}
-                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-50 transition-colors"
                 title="Clear history"
               >
                 <Trash2 className="w-4 h-4" />
@@ -76,7 +73,7 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+                className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-50 transition-colors"
                 title="Close chat"
               >
                 <X className="w-4 h-4" />
@@ -98,7 +95,7 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
                       'max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm break-words whitespace-pre-wrap',
                       isUser
                         ? 'bg-blue-600 text-white rounded-br-sm'
-                        : 'bg-white/[0.06] border border-white/[0.08] text-text-primary rounded-bl-sm font-sans'
+                        : 'bg-slate-50 border border-slate-200 text-text-primary rounded-bl-sm font-sans'
                     )}
                   >
                     {!isUser && msg.content === '' && (
@@ -129,10 +126,10 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
                       type="button"
                       onClick={() => sendMessage(q, initialContext)}
                       disabled={isLoading}
-                      className="text-left text-xs px-3 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] text-text-secondary hover:text-text-primary transition-colors flex items-center justify-between group"
+                      className="text-left text-xs px-3 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-text-secondary hover:text-text-primary transition-colors flex items-center justify-between group"
                     >
                       <span>{q}</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 text-text-muted group-hover:text-blue-400 shrink-0 ml-1" />
+                      
                     </button>
                   ))}
                 </div>
@@ -140,7 +137,7 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
             )}
 
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-600">
                 {error}
               </div>
             )}
@@ -151,14 +148,14 @@ export function AIChatModal({ isOpen, onClose, initialContext }: AIChatModalProp
           {/* Input Form */}
           <form
             onSubmit={handleSubmit}
-            className="p-3 bg-white/[0.03] border-t border-white/[0.08] flex items-center gap-2"
+            className="p-3 bg-white border-t border-slate-200 flex items-center gap-2"
           >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask NXTvue AI anything..."
-              className="flex-1 bg-white/[0.05] border border-white/[0.1] rounded-2xl px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-400 transition-colors"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-400 transition-colors"
               disabled={isLoading}
             />
             <button

@@ -69,7 +69,7 @@ export function EmptyState({
 
   return (
     <div className={cn('flex flex-col items-center justify-center text-center py-16 px-6', className)} {...props}>
-      <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-5 text-blue-400 shadow-inner">
+      <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-5 text-blue-600 shadow-inner">
         <Icon className="w-7 h-7" />
       </div>
       <h3 className="font-heading text-lg font-semibold text-text-primary mb-2">

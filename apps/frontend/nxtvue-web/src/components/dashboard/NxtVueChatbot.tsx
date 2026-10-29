@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Sparkles, Bot } from 'lucide-react'
+import { X, Send } from 'lucide-react'
 import { useAIChat } from '@/hooks/useAIChat'
 
 export function NxtVueChatbot() {
@@ -35,21 +35,24 @@ export function NxtVueChatbot() {
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {isOpen && (
-        <div className="mb-4 w-[calc(100vw-3rem)] sm:w-[400px] h-[500px] max-h-[70vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-black/10 transition-all duration-300 transform origin-bottom-right">
+        <div className="mb-4 w-[calc(100vw-3rem)] sm:w-[400px] h-[500px] max-h-[70vh] bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 transition-all duration-300 transform origin-bottom-right">
           {/* Header */}
-          <div className="bg-black p-4 flex items-center justify-between">
+          <div className="bg-slate-50 px-5 py-4 flex items-center justify-between border-b border-slate-200">
             <div className="flex items-center gap-3">
-              <div className="bg-white/10 p-2 rounded-full">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 border border-slate-300">
+                <span className="text-[15px] select-none text-slate-900 absolute">✳︎</span>
+                {isLoading && (
+                  <div className="absolute inset-0 rounded-full border border-slate-400 animate-ping opacity-20" />
+                )}
               </div>
               <div>
-                <h3 className="text-white font-medium text-sm">NxtVue AI</h3>
-                <p className="text-white/60 text-xs">Always here to help</p>
+                <h3 className="text-slate-900 font-medium text-sm">A.R.I.A (Gemini)</h3>
+                <p className="text-slate-500 text-[10px] uppercase tracking-widest font-heading">Financial Analyst</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-white/60 hover:text-white transition-colors"
+              className="text-slate-500 hover:text-slate-900 transition-colors p-1"
               aria-label="Close chat"
             >
               <X className="w-5 h-5" />
@@ -57,22 +60,22 @@ export function NxtVueChatbot() {
           </div>
 
           {/* Chat Area */}
-          <div className="flex-1 p-4 overflow-y-auto bg-[#F9F9F9] flex flex-col gap-4">
+          <div className="flex-1 p-5 overflow-y-auto bg-white flex flex-col gap-4 custom-report-scrollbar">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center mr-2 shrink-0 mt-1">
-                    <Bot className="w-3 h-3 text-white" />
+                  <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center mr-2 shrink-0 mt-1">
+                    <span className="text-[12px] select-none text-slate-900">✳︎</span>
                   </div>
                 )}
                 <div
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${
+                  className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-black text-white rounded-tr-sm'
-                      : 'bg-white border border-black/5 text-black/80 rounded-tl-sm shadow-sm'
+                      ? 'bg-slate-900 text-white rounded-br-sm'
+                      : 'bg-slate-100 border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
                   }`}
                 >
                   {msg.content}
@@ -81,20 +84,20 @@ export function NxtVueChatbot() {
             ))}
             {isLoading && (
               <div className="flex justify-start items-end">
-                <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center mr-2 shrink-0">
-                  <Bot className="w-3 h-3 text-white" />
+                <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center mr-2 shrink-0">
+                  <span className="text-[12px] select-none text-slate-900">✳︎</span>
                 </div>
-                <div className="bg-white border border-black/5 p-4 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1">
+                <div className="bg-slate-100 border border-slate-200 p-4 rounded-2xl rounded-bl-sm shadow-sm flex items-center gap-1">
                   <div
-                    className="w-1.5 h-1.5 bg-black/40 rounded-full animate-bounce"
+                    className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
                     style={{ animationDelay: '0ms' }}
                   />
                   <div
-                    className="w-1.5 h-1.5 bg-black/40 rounded-full animate-bounce"
+                    className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
                     style={{ animationDelay: '150ms' }}
                   />
                   <div
-                    className="w-1.5 h-1.5 bg-black/40 rounded-full animate-bounce"
+                    className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"
                     style={{ animationDelay: '300ms' }}
                   />
                 </div>
@@ -106,19 +109,19 @@ export function NxtVueChatbot() {
           {/* Input Area */}
           <form
             onSubmit={handleSend}
-            className="p-4 bg-white border-t border-black/5 flex items-center gap-2 shrink-0"
+            className="p-4 bg-slate-50 border-t border-slate-200 flex items-center gap-2 shrink-0"
           >
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about stocks, portfolio, USD NxtVue..."
-              className="flex-1 bg-[#F5F5F5] rounded-full px-4 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black/10"
+              placeholder="Ask about stocks, portfolio, markets..."
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:bg-white transition-all"
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="bg-black text-white p-2.5 rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-900 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
               aria-label="Send message"
             >
               <Send className="w-4 h-4" />
@@ -127,16 +130,19 @@ export function NxtVueChatbot() {
         </div>
       )}
 
-      {/* Toggle Button */}
+      {/* Toggle Button with Reports ✳︎ Icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 bg-black rounded-full shadow-lg flex items-center justify-center hover:bg-gray-800 transition-transform hover:scale-105 active:scale-95 z-50 cursor-pointer"
-        aria-label="Open AI chat assistant"
+        className={`w-14 h-14 rounded-full flex items-center justify-center bg-slate-100 backdrop-blur-xl border border-slate-300 text-slate-900 shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:bg-slate-100 hover:scale-110 transition-all duration-300 z-50 cursor-pointer ${
+          isOpen ? 'bg-slate-100' : ''
+        }`}
+        aria-label={isOpen ? 'Close AI chat assistant' : 'Open AI chat assistant'}
+        aria-expanded={isOpen}
       >
         {isOpen ? (
-          <X className="w-6 h-6 text-white" />
+          <X className="w-5 h-5 text-slate-900" aria-hidden="true" />
         ) : (
-          <MessageCircle className="w-6 h-6 text-white" />
+          <span className="text-xs font-bold tracking-wide text-slate-900" aria-hidden="true">AI</span>
         )}
       </button>
     </div>

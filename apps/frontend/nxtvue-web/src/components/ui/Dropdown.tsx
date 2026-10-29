@@ -75,7 +75,7 @@ export function DropdownItem({ children, onClick, disabled, destructive, icon, s
       className={cn(
         'w-full px-4 py-2.5 text-left text-sm font-medium transition-colors flex items-center gap-3',
         destructive
-          ? 'text-red-400 hover:bg-red-500/10'
+          ? 'text-red-600 hover:bg-red-500/10'
           : 'text-text-secondary hover:text-text-primary hover:bg-bg-glass',
         disabled && 'opacity-50 cursor-not-allowed'
       )}

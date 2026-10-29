@@ -1,189 +1,112 @@
 // ─── Notification Bell & Popover Component ────────────────────────────────────
 
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, CheckCheck, Trash2, ArrowUpRight, CheckCircle2, AlertTriangle, Info, AlertCircle } from 'lucide-react'
-import { useNotifications, NotificationItem } from '@/context/NotificationContext'
+import { Bell } from 'lucide-react'
+import { useNotifications } from '@/context/NotificationContext'
+import { TvWidget } from '@/components/charts/TvWidget'
 import { cn } from '@/utils/cn'
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  className?: string
+}
+
+export function NotificationBell({ className }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all')
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAllNotifications } = useNotifications()
+  const { unreadCount } = useNotifications()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close on outside click
+  // Close on outside click or Escape
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
+    if (!isOpen) return
+    const onMouseDown = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false)
     }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false)
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [isOpen])
 
-  const filteredNotifications = activeTab === 'unread'
-    ? notifications.filter((n) => !n.read)
-    : notifications
-
-  const getIcon = (type: NotificationItem['type']) => {
-    switch (type) {
-      case 'success':
-        return <CheckCircle2 className="w-4 h-4 text-green-400" />
-      case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-amber-400" />
-      case 'alert':
-        return <AlertCircle className="w-4 h-4 text-red-400" />
-      default:
-        return <Info className="w-4 h-4 text-blue-400" />
+  // Intercept link clicks inside the TradingView iframe so stories open
+  // inside our app rather than navigating away.
+  // We use a transparent overlay over the iframe to capture pointer events
+  // and block external navigation while still allowing TradingView to render.
+  const handleWidgetContainerClick = (e: React.MouseEvent) => {
+    // Let the widget itself render; we just prevent any <a> navigation
+    const target = e.target as HTMLElement
+    const anchor = target.closest('a')
+    if (anchor && anchor.href && !anchor.href.startsWith(window.location.origin)) {
+      e.preventDefault()
+      e.stopPropagation()
     }
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={cn('relative', className)} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className={cn(
           'relative p-2 rounded-xl transition-all duration-200',
-          isOpen
-            ? 'bg-white/[0.08] text-text-primary'
-            : 'text-text-muted hover:text-text-primary hover:bg-white/[0.05]'
+          isOpen ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
         )}
-        aria-label="Notifications"
-        title="Notifications"
+        aria-label="Top market stories"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        title="Top market stories"
       >
-        <Bell className="w-4 h-4" />
+        <Bell className="w-4 h-4" aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)] animate-pulse" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" aria-hidden="true" />
         )}
       </button>
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            role="dialog"
+            aria-label="Top market stories"
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 8 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[rgba(6,10,24,0.96)] backdrop-blur-3xl border border-white/[0.12] shadow-2xl overflow-hidden z-[500]"
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute right-0 mt-2 w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-[500]"
           >
             {/* Header */}
-            <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h3 className="font-heading font-semibold text-text-primary text-sm">Notifications</h3>
-                {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                    {unreadCount} new
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-1">
-                {unreadCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={markAllAsRead}
-                    className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors text-xs flex items-center gap-1"
-                    title="Mark all as read"
-                  >
-                    <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
-                    <span className="text-[11px]">Mark read</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={clearAllNotifications}
-                  className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-white/[0.06] transition-colors"
-                  title="Clear all"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Filter Tabs */}
-            <div className="flex border-b border-white/[0.06] px-3 pt-2 gap-2 bg-white/[0.02]">
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-slate-100">
+              <span className="text-xs font-semibold text-slate-900 tracking-wide uppercase">Top Stories</span>
               <button
                 type="button"
-                onClick={() => setActiveTab('all')}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  activeTab === 'all'
-                    ? 'bg-white/[0.08] text-text-primary'
-                    : 'text-text-muted hover:text-text-secondary'
-                )}
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors text-[11px]"
+                aria-label="Close"
               >
-                All ({notifications.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('unread')}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  activeTab === 'unread'
-                    ? 'bg-white/[0.08] text-text-primary'
-                    : 'text-text-muted hover:text-text-secondary'
-                )}
-              >
-                Unread ({unreadCount})
+                ✕
               </button>
             </div>
 
-            {/* Notification List */}
-            <div className="max-h-80 overflow-y-auto divide-y divide-white/[0.04]">
-              {filteredNotifications.length === 0 ? (
-                <div className="py-12 px-4 text-center">
-                  <Bell className="w-8 h-8 text-text-muted/40 mx-auto mb-2" />
-                  <p className="text-xs text-text-secondary">No notifications to display</p>
-                </div>
-              ) : (
-                filteredNotifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    onClick={() => markAsRead(notif.id)}
-                    className={cn(
-                      'p-3.5 transition-colors flex items-start gap-3 cursor-pointer group',
-                      !notif.read ? 'bg-blue-500/[0.04] hover:bg-blue-500/[0.08]' : 'hover:bg-white/[0.04]'
-                    )}
-                  >
-                    <div className="mt-0.5 shrink-0 p-1.5 rounded-lg bg-white/[0.04]">
-                      {getIcon(notif.type)}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <p className={cn('text-xs font-semibold truncate', !notif.read ? 'text-text-primary' : 'text-text-secondary')}>
-                          {notif.title}
-                        </p>
-                        {!notif.read && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-text-muted leading-relaxed line-clamp-2 mb-1.5">
-                        {notif.message}
-                      </p>
-                      <div className="flex items-center justify-between text-[10px] text-text-muted">
-                        <span>{new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        {notif.link && (
-                          <Link
-                            to={notif.link}
-                            onClick={() => setIsOpen(false)}
-                            className="text-blue-400 hover:underline flex items-center gap-0.5"
-                          >
-                            <span>View details</span>
-                            <ArrowUpRight className="w-2.5 h-2.5" />
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+            {/* TradingView top-stories widget — links intercepted via pointer-events */}
+            <div
+              className="h-[440px] relative"
+              onClick={handleWidgetContainerClick}
+            >
+              <TvWidget
+                widget="news-feed"
+                theme="light"
+                height={440}
+                options={{
+                  'layout-mode': 'flow',
+                  'item-size': 'normal',
+                  'assets-type': 'all',
+                  'news-type': 'top-stories',
+                }}
+              />
             </div>
           </motion.div>
         )}

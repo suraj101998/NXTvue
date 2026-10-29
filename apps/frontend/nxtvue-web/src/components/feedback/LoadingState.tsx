@@ -18,7 +18,7 @@ export function LoadingState({ className, variant = 'spinner', size = 'md', text
   if (variant === 'inline') {
     return (
       <div className={cn('inline-flex items-center gap-2', className)} {...props}>
-        <Loader2 className={cn(sizes[size].spinner, 'text-blue-400 animate-spin')} />
+        <Loader2 className={cn(sizes[size].spinner, 'text-blue-600 animate-spin')} />
         {text && <span className={cn('text-text-secondary', sizes[size].text)}>{text}</span>}
       </div>
     )
@@ -36,7 +36,7 @@ export function LoadingState({ className, variant = 'spinner', size = 'md', text
 
   return (
     <div className={cn('flex flex-col items-center justify-center gap-3', className)} {...props}>
-      <Loader2 className={cn(sizes[size].spinner, 'text-blue-400 animate-spin')} />
+      <Loader2 className={cn(sizes[size].spinner, 'text-blue-600 animate-spin')} />
       {text && <span className={cn('text-text-secondary', sizes[size].text)}>{text}</span>}
     </div>
   )

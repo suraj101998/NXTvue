@@ -58,7 +58,7 @@ export function SearchResults({
       return (
         <div
           key={`${result.market}-${result.ticker}`}
-          className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.04] transition-colors border-b border-border-subtle/50 last:border-0"
+          className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors border-b border-border-subtle/50 last:border-0"
         >
           <Link
             to={tickerToPath(result.ticker, result.market)}
@@ -71,10 +71,10 @@ export function SearchResults({
             <div className="truncate">
               <p className="font-medium text-text-primary truncate">{result.name}</p>
               <div className="text-xs text-text-muted flex items-center gap-2 mt-0.5">
-                <span className="px-1.5 py-0.5 text-[10px] uppercase font-semibold bg-white/[0.08] text-text-secondary rounded">
+                <span className="px-1.5 py-0.5 text-[10px] uppercase font-semibold bg-slate-100 text-text-secondary rounded">
                   {result.market === 'us' ? 'US' : 'India'}
                 </span>
-                <span className="px-1.5 py-0.5 text-[10px] bg-blue-500/10 text-blue-400 rounded">
+                <span className="px-1.5 py-0.5 text-[10px] bg-blue-500/10 text-blue-600 rounded">
                   {result.type}
                 </span>
                 <span className="font-mono text-text-secondary">{result.ticker}</span>
@@ -88,7 +88,7 @@ export function SearchResults({
                   {currencySymbol}{result.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 {result.change_pct !== undefined && result.change_pct !== null && (
-                  <p className={cn('text-xs font-mono', result.change_pct >= 0 ? 'text-green-400' : 'text-red-400')}>
+                  <p className={cn('text-xs font-mono', result.change_pct >= 0 ? 'text-green-600' : 'text-red-600')}>
                     {result.change_pct >= 0 ? '+' : ''}{result.change_pct.toFixed(2)}%
                   </p>
                 )}
@@ -96,7 +96,7 @@ export function SearchResults({
             )}
             <button
               type="button"
-              className="p-1.5 rounded-lg hover:bg-white/[0.08] transition-colors"
+              className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -110,9 +110,9 @@ export function SearchResults({
               title={inWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
             >
               {inWatchlist ? (
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <Star className="w-4 h-4 fill-amber-400 text-amber-600" />
               ) : (
-                <Star className="w-4 h-4 text-text-muted hover:text-amber-400" />
+                <Star className="w-4 h-4 text-text-muted hover:text-amber-600" />
               )}
             </button>
           </div>
@@ -126,15 +126,15 @@ export function SearchResults({
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      className="absolute top-full left-0 right-0 mt-2 bg-[rgba(6,11,25,0.95)] backdrop-blur-2xl rounded-2xl shadow-2xl border border-white/[0.12] overflow-hidden z-[400]"
+      className="absolute top-full left-0 right-0 mt-2 bg-[rgba(6,11,25,0.95)] backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-300 overflow-hidden z-[400]"
     >
-      <div className="px-4 py-2.5 border-b border-white/[0.06] flex items-center justify-between">
+      <div className="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
         <p className="text-xs text-text-muted">
           Showing results for <span className="text-text-primary font-medium">"{searchQuery}"</span>
         </p>
         <span className="text-[11px] text-text-muted">Press ESC or click outside</span>
       </div>
-      <div className="max-h-96 overflow-y-auto divide-y divide-white/[0.04]">
+      <div className="max-h-96 overflow-y-auto divide-y divide-slate-200">
         {resultsContent}
       </div>
     </motion.div>

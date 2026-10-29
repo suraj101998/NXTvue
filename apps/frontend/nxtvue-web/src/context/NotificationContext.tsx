@@ -64,7 +64,7 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
     category: 'portfolio',
     timestamp: Date.now() - 1000 * 60 * 120, // 2h ago
     read: false,
-    link: '/portfolio/intelligence',
+    link: '/portfolio',
   },
   {
     id: 'notif_3',

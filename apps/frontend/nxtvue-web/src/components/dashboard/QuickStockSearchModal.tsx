@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, X, TrendingUp, ArrowRight, Loader2 } from 'lucide-react'
+import { Search, X, TrendingUp, Loader2 } from 'lucide-react'
 import { useSearch } from '@/hooks/useSearch'
+import { usePolled } from '@/hooks/usePolled'
+import { fetchHistory } from '@/api/market'
+import { fetchIndiaQuotes } from '@/api/india'
 
 interface QuickStockSearchModalProps {
   isOpen: boolean
@@ -9,19 +12,41 @@ interface QuickStockSearchModalProps {
 }
 
 const POPULAR_TICKERS = [
-  { symbol: 'RELIANCE', name: 'Reliance Industries', market: 'india', change: '+1.24%' },
-  { symbol: 'TCS', name: 'Tata Consultancy Services', market: 'india', change: '+0.62%' },
-  { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', market: 'india', change: '+0.85%' },
-  { symbol: 'INFY', name: 'Infosys Limited', market: 'india', change: '+1.45%' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation', market: 'us', change: '+2.80%' },
-  { symbol: 'AAPL', name: 'Apple Inc.', market: 'us', change: '+0.45%' },
+  { symbol: 'RELIANCE', name: 'Reliance Industries', market: 'india' },
+  { symbol: 'TCS', name: 'Tata Consultancy Services', market: 'india' },
+  { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', market: 'india' },
+  { symbol: 'INFY', name: 'Infosys Limited', market: 'india' },
+  { symbol: 'NVDA', name: 'NVIDIA Corporation', market: 'us' },
+  { symbol: 'AAPL', name: 'Apple Inc.', market: 'us' },
 ]
+
+/** Day change % per symbol. A symbol whose quote cannot be loaded is simply absent. */
+async function loadPopularChanges(signal: AbortSignal): Promise<Record<string, number>> {
+  const out: Record<string, number> = {}
+  const indian = POPULAR_TICKERS.filter((t) => t.market === 'india').map((t) => t.symbol)
+  const us = POPULAR_TICKERS.filter((t) => t.market === 'us').map((t) => t.symbol)
+  await Promise.allSettled([
+    fetchIndiaQuotes(indian, signal).then((r) => {
+      for (const q of r.quotes) if (q.changePct !== null) out[q.symbol] = q.changePct
+    }),
+    ...us.map((sym) =>
+      fetchHistory(sym, 'us', '1d', '1mo').then((r) => {
+        const c = r.candles
+        if (c.length >= 2 && c[c.length - 2].close) {
+          out[sym] = ((c[c.length - 1].close - c[c.length - 2].close) / c[c.length - 2].close) * 100
+        }
+      }),
+    ),
+  ])
+  return out
+}
 
 export function QuickStockSearchModal({ isOpen, onClose }: QuickStockSearchModalProps) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const { results, loading, search, clear } = useSearch()
+  const popular = usePolled<Record<string, number>>(isOpen ? 'popular' : null, loadPopularChanges, 60_000)
 
   useEffect(() => {
     if (isOpen) {
@@ -63,7 +88,7 @@ export function QuickStockSearchModal({ isOpen, onClose }: QuickStockSearchModal
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
       <div
         className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-black/10 flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -152,7 +177,7 @@ export function QuickStockSearchModal({ isOpen, onClose }: QuickStockSearchModal
                             )}
                           </div>
                         )}
-                        <ArrowRight className="w-4 h-4 text-black/30 group-hover:text-black group-hover:translate-x-0.5 transition-all" />
+                        
                       </div>
                     </div>
                   ))}
@@ -180,9 +205,16 @@ export function QuickStockSearchModal({ isOpen, onClose }: QuickStockSearchModal
                         <p className="text-xs text-black/50 group-hover:text-white/60">{stock.name}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-medium text-green-600 group-hover:text-green-400">
-                      {stock.change}
-                    </span>
+                    {popular.data?.[stock.symbol] !== undefined && (
+                      <span
+                        className={`text-xs font-medium ${
+                          popular.data[stock.symbol] >= 0 ? 'text-green-600 group-hover:text-green-400' : 'text-red-600 group-hover:text-red-400'
+                        }`}
+                      >
+                        {popular.data[stock.symbol] >= 0 ? '+' : ''}
+                        {popular.data[stock.symbol].toFixed(2)}%
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

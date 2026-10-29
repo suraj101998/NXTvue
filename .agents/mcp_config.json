@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "indmoney": {
+      "url": "https://mcp.indmoney.com/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer 0v3E0tfSdQY3a0n-2pvxmuDPt3BcwW_Y6nNE7FHxfSY"
+      }
+    }
+  }
+}

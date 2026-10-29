@@ -69,7 +69,7 @@ function IndexCard({ index, delay = 0 }: { index: IndexQuote; delay?: number }) 
         </p>
         <span className={cn(
           'shrink-0 p-1 rounded-lg',
-          pos ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400',
+          pos ? 'bg-green-400/10 text-green-600' : 'bg-red-400/10 text-red-600',
         )}>
           {pos
             ? <TrendingUp className="w-3.5 h-3.5" />
@@ -85,13 +85,13 @@ function IndexCard({ index, delay = 0 }: { index: IndexQuote; delay?: number }) 
       <div className="flex items-center gap-1.5">
         <span className={cn(
           'text-xs font-mono font-semibold',
-          pos ? 'text-green-400' : 'text-red-400',
+          pos ? 'text-green-600' : 'text-red-600',
         )}>
           {fmtChange(index.change)}
         </span>
         <span className={cn(
           'text-xs font-mono px-1.5 py-0.5 rounded-md font-semibold',
-          pos ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400',
+          pos ? 'bg-green-400/10 text-green-600' : 'bg-red-400/10 text-red-600',
         )}>
           {fmtPct(index.changePct)}
         </span>
@@ -133,7 +133,7 @@ function Tab({
       <span>{label}</span>
       <span className={cn(
         'text-[10px] font-bold px-1.5 py-0.5 rounded-full tabular-nums',
-        active ? 'bg-blue-400/20 text-blue-400' : 'bg-bg-tertiary text-text-muted',
+        active ? 'bg-blue-400/20 text-blue-600' : 'bg-bg-tertiary text-text-muted',
       )}>
         {count}
       </span>
@@ -167,7 +167,7 @@ export function MarketOverview() {
             <span className="badge-blue">Live</span>
           )}
           {error && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
+            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-400/10 text-amber-600 border border-amber-400/20">
               <AlertCircle className="w-3 h-3" /> Delayed
             </span>
           )}
@@ -201,7 +201,7 @@ export function MarketOverview() {
 
       {/* Error banner */}
       {error && (
-        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-400/5 border border-amber-400/20 text-sm text-amber-400">
+        <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-400/5 border border-amber-400/20 text-sm text-amber-600">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>Could not reach the indices API. Showing cached / placeholder data. <button onClick={refresh} className="underline">Retry</button></span>
         </div>

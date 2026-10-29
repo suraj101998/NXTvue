@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { ArrowRight, Target, Zap, Shield, BarChart3, Brain, Users, Globe, BookOpen, Lightbulb } from 'lucide-react'
+import { Target, Zap, Shield, BarChart3, Brain, Users, Globe, Lightbulb } from 'lucide-react'
 
 export function AboutPage() {
   const maskContainerRef = useRef<HTMLDivElement>(null)
@@ -151,9 +151,9 @@ export function AboutPage() {
         if (!ctx) return
         ctx.beginPath()
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(0, 255, 157, ${this.opacity})`
+        ctx.fillStyle = `rgba(5, 150, 105, ${this.opacity})`
         ctx.shadowBlur = 10
-        ctx.shadowColor = '#00ff9d'
+        ctx.shadowColor = '#059669'
         ctx.fill()
         ctx.shadowBlur = 0
       }
@@ -226,19 +226,19 @@ export function AboutPage() {
   ]
 
   return (
-    <div className="relative min-h-screen bg-black text-white overflow-y-auto">
+    <div className="relative min-h-screen bg-slate-50 text-slate-900 overflow-y-auto">
       {/* Background Layers */}
       <img
         src="https://strvid.nyc3.cdn.digitaloceanspaces.com/motionsite/statu-image.png"
         alt="Classical Statue Base"
-        className="fixed inset-0 w-full h-full object-cover z-0"
+        className="fixed inset-0 w-full h-full object-cover z-0 opacity-20"
         style={{ objectPosition: window.innerWidth < 768 ? '50% center' : '85% center' }}
       />
 
       {/* Reveal Mask Layer */}
       <div
         ref={maskContainerRef}
-        className="fixed inset-0 w-full h-full z-10 pointer-events-none"
+        className="fixed inset-0 w-full h-full z-10 pointer-events-none opacity-50"
         style={{
           maskImage: `radial-gradient(circle ${spotlightRadius}px at ${currentX}px ${currentY}px, black 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 70%, transparent 100%)`,
           WebkitMaskImage: `radial-gradient(circle ${spotlightRadius}px at ${currentX}px ${currentY}px, black 0%, rgba(0,0,0,0.85) 45%, rgba(0,0,0,0.3) 70%, transparent 100%)`,
@@ -262,9 +262,9 @@ export function AboutPage() {
           transform: 'translate(-50%, -50%)',
           width: `${spotlightRadius * 2}px`,
           height: `${spotlightRadius * 2}px`,
-          border: '2px solid rgba(0, 255, 157, 0.4)',
+          border: '2px solid rgba(5, 150, 105, 0.35)',
           borderRadius: '50%',
-          boxShadow: '0 0 30px rgba(0, 255, 157, 0.2), inset 0 0 20px rgba(0, 255, 157, 0.1)',
+          boxShadow: '0 0 24px rgba(5, 150, 105, 0.15)',
         }}
       />
 
@@ -279,27 +279,26 @@ export function AboutPage() {
         {/* Header */}
         <header className="flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3 cursor-pointer group">
-            <div className="w-10 h-10 rounded-xl bg-black/50 backdrop-blur-md border border-green-400/30 shadow-[0_0_10px_rgba(0,255,157,0.1)] flex items-center justify-center transition duration-500 group-hover:border-green-400/70 group-hover:shadow-[0_0_20px_rgba(0,255,157,0.3)]">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ff9d" strokeWidth="2">
+            <div className="w-10 h-10 rounded-xl bg-white border border-emerald-300 shadow-sm flex items-center justify-center transition duration-500 group-hover:border-emerald-500">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
                 <polygon points="12 2 2 22 22 22" />
                 <circle cx="12" cy="16" r="2" />
               </svg>
             </div>
-            <span className="font-heading font-extrabold text-2xl tracking-[0.08em] text-white">NXTvue</span>
+            <span className="font-heading font-extrabold text-2xl tracking-[0.08em] text-slate-900">NXTvue</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#values" className="text-sm font-medium text-white/70 hover:text-green-400 transition">Values</a>
-            <a href="#team" className="text-sm font-medium text-white/70 hover:text-green-400 transition">Team</a>
-            <a href="#approach" className="text-sm font-medium text-white/70 hover:text-green-400 transition">Approach</a>
-            <a href="#careers" className="text-sm font-medium text-white/70 hover:text-green-400 transition">Careers</a>
+            <a href="#values" className="text-sm font-medium text-slate-600 hover:text-emerald-700 transition">Values</a>
+            <a href="#team" className="text-sm font-medium text-slate-600 hover:text-emerald-700 transition">Team</a>
+            <a href="#approach" className="text-sm font-medium text-slate-600 hover:text-emerald-700 transition">Approach</a>
+            <a href="#careers" className="text-sm font-medium text-slate-600 hover:text-emerald-700 transition">Careers</a>
           </nav>
 
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm">Login</Button>
-            <Button variant="primary" size="sm" className="gap-2">
+            <Button variant="primary" size="sm">
               Get Started
-              <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
         </header>
@@ -312,9 +311,9 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 border border-green-400/20 text-green-400 text-[10px] font-bold uppercase tracking-widest backdrop-blur-md"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-emerald-200 text-emerald-700 text-[10px] font-bold uppercase tracking-widest"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_#00ff9d]"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Investment Intelligence Platform
             </motion.div>
 
@@ -325,8 +324,8 @@ export function AboutPage() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="space-y-1"
             >
-              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-white leading-[1.1] tracking-tight drop-shadow-xl">
-                BUILDING THE FUTURE<br />OF <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-green-500">INVESTMENT INTELLIGENCE</span>
+              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-slate-900 leading-[1.1] tracking-tight ">
+                BUILDING THE FUTURE<br />OF <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-emerald-700">INVESTMENT INTELLIGENCE</span>
               </h1>
             </motion.div>
 
@@ -335,7 +334,7 @@ export function AboutPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-base sm:text-lg font-normal text-white/70 tracking-wide max-w-2xl leading-relaxed drop-shadow-md"
+              className="text-base sm:text-lg font-normal text-slate-600 tracking-wide max-w-2xl leading-relaxed "
             >
               Bridging institutional quantitative finance with modern AI to create investment intelligence that's powerful underneath, simple on the surface. NXTvue transforms complex financial data into clear, actionable insights.
             </motion.p>
@@ -348,14 +347,14 @@ export function AboutPage() {
               className="grid grid-cols-2 gap-4 max-w-xl pt-4"
             >
               {stats.map((stat, i) => (
-                <Card key={i} variant="default" padding="md" className="bg-black/40 border-white/5 hover:border-green-400/30 transition duration-500 group">
+                <Card key={i} variant="default" padding="md" className="bg-white border-slate-200 shadow-sm hover:border-emerald-300 transition duration-500 group">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-green-400/20 flex items-center justify-center">
-                      <stat.icon className="w-5 h-5 text-green-400" />
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <stat.icon className="w-5 h-5 text-emerald-700" />
                     </div>
                     <div>
-                      <p className="font-heading text-2xl font-bold text-white">{stat.value}</p>
-                      <p className="text-xs text-white/50 uppercase tracking-wider">{stat.label}</p>
+                      <p className="font-heading text-2xl font-bold text-slate-900">{stat.value}</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wider">{stat.label}</p>
                     </div>
                   </div>
                 </Card>
@@ -369,14 +368,10 @@ export function AboutPage() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="flex flex-wrap items-center gap-5 pt-4"
             >
-              <Button variant="primary" className="gap-3 pl-6 pr-3 py-3 rounded-full text-base">
+              <Button variant="primary" className="px-6 py-3 rounded-full text-base">
                 Explore Platform
-                <span className="w-8 h-8 rounded-full bg-white/90 text-black flex items-center justify-center">
-                  <ArrowRight className="w-4 h-4" />
-                </span>
               </Button>
               <Button variant="outline" className="gap-2 px-6 py-3 rounded-full">
-                <BookOpen className="w-4 h-4" />
                 Read Our Story
               </Button>
             </motion.div>
@@ -386,20 +381,20 @@ export function AboutPage() {
         {/* Footer */}
         <footer className="flex flex-col md:flex-row items-center md:items-end justify-between pointer-events-auto gap-6">
           <div className="flex items-center gap-4">
-            <a href="#" className="text-white/50 hover:text-green-400 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
-            <a href="#" className="text-white/50 hover:text-green-400 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.057-1.266.07-1.645.07-4.85 0-3.259-.014-3.667-.072-4.947-.198-4.354-2.617-6.78-6.979-6.98C15.667.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg></a>
-            <a href="#" className="text-white/50 hover:text-green-400 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg></a>
-            <a href="#" className="text-white/50 hover:text-green-400 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></a>
+            <a href="#" className="text-slate-500 hover:text-emerald-700 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+            <a href="#" className="text-slate-500 hover:text-emerald-700 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.057-1.266.07-1.645.07-4.85 0-3.259-.014-3.667-.072-4.947-.198-4.354-2.617-6.78-6.979-6.98C15.667.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg></a>
+            <a href="#" className="text-slate-500 hover:text-emerald-700 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg></a>
+            <a href="#" className="text-slate-500 hover:text-emerald-700 transition"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></a>
           </div>
 
           <div className="hidden md:flex flex-col items-center gap-2">
-            <span className="text-[10px] font-mono text-green-400 tracking-widest uppercase">Scroll</span>
-            <div className="w-[22px] h-[36px] rounded-full border-2 border-white/30 flex justify-center p-1">
-              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce shadow-[0_0_5px_#00ff9d]"></div>
+            <span className="text-[10px] font-mono text-emerald-700 tracking-widest uppercase">Scroll</span>
+            <div className="w-[22px] h-[36px] rounded-full border-2 border-slate-300 flex justify-center p-1">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"></div>
             </div>
           </div>
 
-          <div className="font-mono text-xs text-green-400 flex items-center gap-2 bg-black/60 px-3 py-1.5 rounded border border-green-400/20">
+          <div className="font-mono text-xs text-emerald-700 flex items-center gap-2 bg-white px-3 py-1.5 rounded border border-emerald-200">
             <span className="animate-pulse">●</span> MASK ACTIVE
           </div>
         </footer>
@@ -414,9 +409,9 @@ export function AboutPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="text-green-400 text-xs font-mono uppercase tracking-widest">Our Principles</span>
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-white mt-4 mb-6">What We Believe</h2>
-            <p className="text-white/60 max-w-2xl mx-auto text-lg">Four principles that guide every decision we make.</p>
+            <span className="text-emerald-700 text-xs font-mono uppercase tracking-widest">Our Principles</span>
+            <h2 className="font-heading text-4xl md:text-5xl font-bold text-slate-900 mt-4 mb-6">What We Believe</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg">Four principles that guide every decision we make.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -429,15 +424,15 @@ export function AboutPage() {
                 transition={{ duration: 0.5, delay: 0.1 * i }}
                 className="group"
               >
-                <Card variant="strong" padding="lg" className="h-full bg-black/40 border-white/5 hover:border-green-400/30 transition duration-500">
+                <Card variant="strong" padding="lg" className="h-full bg-white border-slate-200 shadow-sm hover:border-emerald-300 transition duration-500">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-green-400/20 flex items-center justify-center group-hover:bg-green-400/30 transition-colors">
-                      <value.icon className="w-6 h-6 text-green-400" />
+                    <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                      <value.icon className="w-6 h-6 text-emerald-700" />
                     </div>
                     <div>
-                      <span className="font-mono text-green-400 text-lg font-bold">{value.number}</span>
-                      <h3 className="font-heading text-xl font-semibold text-white mt-2 mb-2">{value.title}</h3>
-                      <p className="text-white/60">{value.desc}</p>
+                      <span className="font-mono text-emerald-700 text-lg font-bold">{value.number}</span>
+                      <h3 className="font-heading text-xl font-semibold text-slate-900 mt-2 mb-2">{value.title}</h3>
+                      <p className="text-slate-600">{value.desc}</p>
                     </div>
                   </div>
                 </Card>
@@ -448,7 +443,7 @@ export function AboutPage() {
       </section>
 
       {/* Team Section */}
-      <section id="team" className="relative z-30 py-24 px-6 md:px-10 bg-black/50">
+      <section id="team" className="relative z-30 py-24 px-6 md:px-10 bg-white/70">
         <div className="max-w-[1400px] mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -456,9 +451,9 @@ export function AboutPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="text-green-400 text-xs font-mono uppercase tracking-widest">Leadership</span>
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-white mt-4 mb-6">The Minds Behind NXTvue</h2>
-            <p className="text-white/60 max-w-2xl mx-auto text-lg">Deep expertise across quantitative finance, AI research, and institutional technology.</p>
+            <span className="text-emerald-700 text-xs font-mono uppercase tracking-widest">Leadership</span>
+            <h2 className="font-heading text-4xl md:text-5xl font-bold text-slate-900 mt-4 mb-6">The Minds Behind NXTvue</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg">Deep expertise across quantitative finance, AI research, and institutional technology.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -470,13 +465,13 @@ export function AboutPage() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.1 * i }}
               >
-                <Card variant="default" padding="lg" className="bg-black/40 border-white/5 text-center group">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400/30 to-emerald-500/30 mx-auto mb-4 flex items-center justify-center border border-green-400/30 group-hover:border-green-400/50 transition-colors">
-                    <span className="font-heading text-2xl font-bold text-white">{member.name.charAt(0)}{member.name.split(' ')[1]?.charAt(0) || ''}</span>
+                <Card variant="default" padding="lg" className="bg-white border-slate-200 shadow-sm text-center group">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 mx-auto mb-4 flex items-center justify-center border border-emerald-300 group-hover:border-emerald-500 transition-colors">
+                    <span className="font-heading text-2xl font-bold text-slate-900">{member.name.charAt(0)}{member.name.split(' ')[1]?.charAt(0) || ''}</span>
                   </div>
-                  <h3 className="font-heading text-lg font-semibold text-white">{member.name}</h3>
-                  <p className="text-green-400 text-sm font-medium mb-2">{member.role}</p>
-                  <p className="text-white/50 text-xs">{member.background}</p>
+                  <h3 className="font-heading text-lg font-semibold text-slate-900">{member.name}</h3>
+                  <p className="text-emerald-700 text-sm font-medium mb-2">{member.role}</p>
+                  <p className="text-slate-500 text-xs">{member.background}</p>
                 </Card>
               </motion.div>
             ))}
@@ -493,9 +488,9 @@ export function AboutPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <span className="text-green-400 text-xs font-mono uppercase tracking-widest">Our Methodology</span>
-            <h2 className="font-heading text-4xl md:text-5xl font-bold text-white mt-4 mb-6">How We Build Intelligence</h2>
-            <p className="text-white/60 max-w-2xl mx-auto text-lg">Python calculates. AI interprets. This principle guides everything.</p>
+            <span className="text-emerald-700 text-xs font-mono uppercase tracking-widest">Our Methodology</span>
+            <h2 className="font-heading text-4xl md:text-5xl font-bold text-slate-900 mt-4 mb-6">How We Build Intelligence</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-lg">Python calculates. AI interprets. This principle guides everything.</p>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -511,16 +506,16 @@ export function AboutPage() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.1 * i }}
               >
-                <Card variant="strong" padding="lg" className="h-full bg-black/40 border-white/5 hover:border-green-400/30 transition duration-500">
-                  <div className="w-12 h-12 rounded-xl bg-green-400/20 flex items-center justify-center mb-6">
-                    <item.icon className="w-6 h-6 text-green-400" />
+                <Card variant="strong" padding="lg" className="h-full bg-white border-slate-200 shadow-sm hover:border-emerald-300 transition duration-500">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-6">
+                    <item.icon className="w-6 h-6 text-emerald-700" />
                   </div>
-                  <h3 className="font-heading text-xl font-semibold text-white mb-3">{item.title}</h3>
-                  <p className="text-white/60 mb-6">{item.desc}</p>
+                  <h3 className="font-heading text-xl font-semibold text-slate-900 mb-3">{item.title}</h3>
+                  <p className="text-slate-600 mb-6">{item.desc}</p>
                   <ul className="space-y-2">
                     {item.features.map((feature, j) => (
-                      <li key={j} className="flex items-center gap-2 text-white/70 text-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                      <li key={j} className="flex items-center gap-2 text-slate-600 text-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         {feature}
                       </li>
                     ))}
@@ -541,12 +536,11 @@ export function AboutPage() {
             viewport={{ once: true }}
           >
             <Card variant="premium" padding="lg" className="max-w-3xl mx-auto">
-              <h2 className="font-heading text-3xl md:text-4xl font-bold text-white mb-6">Ready to Experience Institutional Intelligence?</h2>
-              <p className="text-white/60 text-lg mb-8">Join thousands of investors who trust NXTvue for their investment decisions.</p>
+              <h2 className="font-heading text-3xl md:text-4xl font-bold text-slate-900 mb-6">Ready to Experience Institutional Intelligence?</h2>
+              <p className="text-slate-600 text-lg mb-8">Join thousands of investors who trust NXTvue for their investment decisions.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button variant="primary" size="lg" className="gap-2">
+                <Button variant="primary" size="lg">
                   Start Free Trial
-                  <ArrowRight className="w-5 h-5" />
                 </Button>
                 <Button variant="outline" size="lg">Schedule Demo</Button>
               </div>

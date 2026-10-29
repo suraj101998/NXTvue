@@ -20,12 +20,12 @@ const typeStyles = {
 }
 
 const typeIcons = {
-  insight: <Lightbulb className="w-5 h-5 text-blue-400" />,
-  warning: <AlertTriangle className="w-5 h-5 text-amber-400" />,
-  opportunity: <TrendingUp className="w-5 h-5 text-green-400" />,
-  risk: <TrendingDown className="w-5 h-5 text-red-400" />,
+  insight: <Lightbulb className="w-5 h-5 text-blue-600" />,
+  warning: <AlertTriangle className="w-5 h-5 text-amber-600" />,
+  opportunity: <TrendingUp className="w-5 h-5 text-green-600" />,
+  risk: <TrendingDown className="w-5 h-5 text-red-600" />,
   neutral: <Info className="w-5 h-5 text-text-muted" />,
-  target: <Target className="w-5 h-5 text-indigo-400" />,
+  target: <Target className="w-5 h-5 text-indigo-600" />,
 }
 
 export const InsightCard = forwardRef<HTMLDivElement, InsightCardProps>(

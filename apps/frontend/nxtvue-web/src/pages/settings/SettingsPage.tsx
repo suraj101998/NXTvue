@@ -11,7 +11,6 @@ import {
   Save,
   Check,
   RefreshCw,
-  Sparkles,
   Lock,
   Globe,
   Coins,
@@ -106,7 +105,7 @@ export function SettingsPage() {
     <div className="min-h-screen bg-bg-primary pt-8 pb-20 px-6 lg:px-12">
       <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
             <h1 className="font-heading text-3xl font-bold text-text-primary">Settings & Profile</h1>
             <p className="text-text-secondary text-sm mt-1">
@@ -123,7 +122,7 @@ export function SettingsPage() {
             {isSaving ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             ) : isSaved ? (
-              <Check className="w-4 h-4 mr-2 text-green-300" />
+              <Check className="w-4 h-4 mr-2 text-green-600" />
             ) : (
               <Save className="w-4 h-4 mr-2" />
             )}
@@ -132,7 +131,7 @@ export function SettingsPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-white/[0.06]">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200">
           {[
             { id: 'profile', label: 'Profile', icon: UserIcon },
             { id: 'preferences', label: 'Investment Preferences', icon: Sliders },
@@ -150,8 +149,8 @@ export function SettingsPage() {
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200',
                   isActive
-                    ? 'bg-blue-600/15 border border-blue-500/30 text-blue-400 shadow-sm'
-                    : 'text-text-muted hover:text-text-primary hover:bg-white/[0.04]'
+                    ? 'bg-blue-600/15 border border-blue-500/30 text-blue-600 shadow-sm'
+                    : 'text-text-muted hover:text-text-primary hover:bg-slate-50'
                 )}
               >
                 <Icon className="w-4 h-4" />
@@ -170,13 +169,13 @@ export function SettingsPage() {
                 <h3 className="font-heading font-semibold text-lg text-text-primary">Investor Profile</h3>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-heading font-bold text-2xl shadow-xl border border-white/20">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-heading font-bold text-2xl shadow-xl border border-slate-300">
                     {user?.name ? user.name.slice(0, 2).toUpperCase() : 'NV'}
                   </div>
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-3">
                       <h4 className="font-heading font-bold text-text-primary text-xl">{user?.name || 'Investor'}</h4>
-                      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                      <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-blue-500/20 text-blue-600 border border-blue-500/30">
                         {user?.is_family_head ? 'Family Head' : 'Pro Investor'}
                       </span>
                     </div>
@@ -185,13 +184,13 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.06]">
+                <div className="grid sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-text-muted">Display Name</label>
                     <input
                       type="text"
                       defaultValue={user?.name || 'Test User'}
-                      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-blue-400"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-text-primary focus:outline-none focus:border-blue-400"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -200,7 +199,7 @@ export function SettingsPage() {
                       type="email"
                       defaultValue={user?.email || 'user@example.com'}
                       disabled
-                      className="w-full bg-white/[0.02] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm text-text-muted cursor-not-allowed"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-text-muted cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -217,7 +216,7 @@ export function SettingsPage() {
                 <div className="grid sm:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-blue-400" /> Default Market Focus
+                      <Globe className="w-4 h-4 text-blue-600" /> Default Market Focus
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {['india', 'us'].map((m) => (
@@ -228,8 +227,8 @@ export function SettingsPage() {
                           className={cn(
                             'p-3 rounded-xl border text-sm font-medium transition-all capitalize',
                             settings.default_market === m
-                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                              : 'bg-white/[0.03] border-white/[0.08] text-text-muted hover:text-text-primary'
+                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-600'
+                              : 'bg-white border-slate-200 text-text-muted hover:text-text-primary'
                           )}
                         >
                           {m === 'india' ? '🇮🇳 India (NSE/BSE)' : '🇺🇸 US (NASDAQ/NYSE)'}
@@ -240,7 +239,7 @@ export function SettingsPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-                      <Coins className="w-4 h-4 text-amber-400" /> Display Currency
+                      <Coins className="w-4 h-4 text-amber-600" /> Display Currency
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {['INR', 'USD'].map((c) => (
@@ -251,8 +250,8 @@ export function SettingsPage() {
                           className={cn(
                             'p-3 rounded-xl border text-sm font-medium transition-all',
                             settings.default_currency === c
-                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                              : 'bg-white/[0.03] border-white/[0.08] text-text-muted hover:text-text-primary'
+                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-600'
+                              : 'bg-white border-slate-200 text-text-muted hover:text-text-primary'
                           )}
                         >
                           {c === 'INR' ? 'INR (₹ Rupee)' : 'USD ($ Dollar)'}
@@ -263,7 +262,7 @@ export function SettingsPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-indigo-400" /> Default Projection Horizon
+                      <Calendar className="w-4 h-4 text-indigo-600" /> Default Projection Horizon
                     </label>
                     <div className="grid grid-cols-3 gap-3">
                       {[2025, 2026, 2027].map((yr) => (
@@ -274,8 +273,8 @@ export function SettingsPage() {
                           className={cn(
                             'p-3 rounded-xl border text-sm font-medium transition-all',
                             settings.default_year === yr
-                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-300'
-                              : 'bg-white/[0.03] border-white/[0.08] text-text-muted hover:text-text-primary'
+                              ? 'bg-blue-600/20 border-blue-500/50 text-blue-600'
+                              : 'bg-white border-slate-200 text-text-muted hover:text-text-primary'
                           )}
                         >
                           {yr}
@@ -286,17 +285,17 @@ export function SettingsPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-text-primary flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-emerald-400" /> Risk Tolerance Model
+                      <Shield className="w-4 h-4 text-emerald-600" /> Risk Tolerance Model
                     </label>
                     <select
                       value={settings.risk_profile}
                       onChange={(e) => setSettings({ ...settings, risk_profile: e.target.value })}
-                      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-blue-400"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-text-primary focus:outline-none focus:border-blue-400"
                     >
-                      <option value="conservative" className="bg-[#0b1022]">Conservative (Capital Preservation)</option>
-                      <option value="moderate" className="bg-[#0b1022]">Moderate (Balanced Growth & Divs)</option>
-                      <option value="aggressive" className="bg-[#0b1022]">Aggressive (High Equity Beta)</option>
-                      <option value="ultra_growth" className="bg-[#0b1022]">High Growth (Small Cap & Tech Focus)</option>
+                      <option value="conservative" className="bg-white">Conservative (Capital Preservation)</option>
+                      <option value="moderate" className="bg-white">Moderate (Balanced Growth & Divs)</option>
+                      <option value="aggressive" className="bg-white">Aggressive (High Equity Beta)</option>
+                      <option value="ultra_growth" className="bg-white">High Growth (Small Cap & Tech Focus)</option>
                     </select>
                   </div>
                 </div>
@@ -330,7 +329,7 @@ export function SettingsPage() {
                   ].map((item) => (
                     <div
                       key={item.key}
-                      className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl"
+                      className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl"
                     >
                       <div className="pr-4">
                         <p className="font-medium text-text-primary text-sm">{item.label}</p>
@@ -356,24 +355,21 @@ export function SettingsPage() {
                 <h3 className="font-heading font-semibold text-lg text-text-primary">AI & Data Providers</h3>
 
                 <div className="grid gap-4">
-                  <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl flex items-center justify-between">
+                  <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
                       <div>
                         <p className="font-medium text-text-primary text-sm">Bob LLM Financial Model</p>
                         <p className="text-xs text-text-muted">Institutional report generation engine</p>
                       </div>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
                       Connected
                     </span>
                   </div>
 
-                  <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl flex items-center justify-between">
+                  <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600">
                         <Database className="w-5 h-5" />
                       </div>
                       <div>
@@ -381,13 +377,13 @@ export function SettingsPage() {
                         <p className="text-xs text-text-muted">Real-time quotes, financials, and multi-asset ratios</p>
                       </div>
                     </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
                       Active
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-white/[0.06]">
+                <div className="pt-4 border-t border-slate-200">
                   <h4 className="text-sm font-semibold text-text-primary mb-2">Local Data & Offline Cache</h4>
                   <p className="text-xs text-text-secondary mb-4">
                     Clear local watchlist and cache storage to force a full re-sync with market servers.
@@ -406,9 +402,9 @@ export function SettingsPage() {
               <div className="glass-card p-6 space-y-6">
                 <h3 className="font-heading font-semibold text-lg text-text-primary">Security & Active Sessions</h3>
 
-                <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl flex items-center justify-between">
+                <div className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
+                    <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-600">
                       <Lock className="w-5 h-5" />
                     </div>
                     <div>
@@ -416,7 +412,7 @@ export function SettingsPage() {
                       <p className="text-xs text-text-muted">Secured via HTTP-only encrypted JWT session cookies</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 text-xs font-semibold bg-green-500/20 text-green-400 rounded-full">
+                  <span className="px-2.5 py-1 text-xs font-semibold bg-green-500/20 text-green-600 rounded-full">
                     Active
                   </span>
                 </div>

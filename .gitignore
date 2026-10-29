@@ -109,3 +109,7 @@ pnpm-debug.log*
 
 # ─── Misc project-specific ────────────────────────────────────────────────────
 dashboard.html
+
+# Playwright
+test-results/
+playwright-report/

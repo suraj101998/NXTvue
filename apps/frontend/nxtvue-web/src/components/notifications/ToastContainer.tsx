@@ -21,10 +21,10 @@ export function ToastContainer() {
 
 function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
   const icons = {
-    success: <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0" />,
-    error: <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />,
-    warning: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />,
-    info: <Info className="w-5 h-5 text-blue-400 shrink-0" />,
+    success: <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />,
+    error: <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />,
+    warning: <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />,
+    info: <Info className="w-5 h-5 text-blue-600 shrink-0" />,
   }
 
   const borderColors = {
@@ -69,7 +69,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
       <button
         type="button"
         onClick={onDismiss}
-        className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors shrink-0"
+        className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-slate-50 transition-colors shrink-0"
         aria-label="Dismiss toast"
       >
         <X className="w-4 h-4" />

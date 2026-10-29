@@ -9,17 +9,27 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  getCurrentUser,
-  logout as apiLogout,
-  checkAuthStatus,
-  refreshAccessToken,
-  devLogin,
   setAuthStorage,
   clearAuthStorage,
-  updateAccessToken,
   getStoredUser,
 } from './api'
 import type { User } from './types'
+
+// ─── Hardcoded test user (no backend required) ─────────────────────────────────
+const TEST_USER: User = {
+  id: 'test-user-001',
+  email: 'investor@nxtvue.com',
+  name: 'Arjun Sharma',
+  is_family_head: true,
+  avatar_url: null,
+}
+
+const TEST_TOKENS = {
+  access_token: 'dev-access-token-nxtvue',
+  refresh_token: 'dev-refresh-token-nxtvue',
+  token_type: 'bearer',
+  expires_in: 86400,
+}
 
 interface AuthContextType {
   user: User | null
@@ -50,77 +60,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const initAuth = useCallback(async () => {
     try {
       setLoading(true)
+      // Use stored user if present (persists across refreshes)
       const storedUser = getStoredUser()
       if (storedUser) {
         setUser(storedUser)
       }
-
-      // Verify with server
-      const status = await checkAuthStatus()
-      if (status.authenticated && status.user) {
-        setUser(status.user)
-      } else if (storedUser) {
-        // Stored user but server says not authenticated - try refresh
-        await tryRefreshToken()
-      }
-    } catch (err) {
-      console.error('Auth init failed:', err)
-      // Try refresh token as fallback
-      await tryRefreshToken()
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const tryRefreshToken = useCallback(async () => {
-    try {
-      const result = await refreshAccessToken()
-      updateAccessToken(result.access_token)
-      // Fetch user again with new token
-      const userData = await getCurrentUser()
-      setUser(userData)
-    } catch {
-      // Refresh failed - clear storage
-      clearAuthStorage()
-      setUser(null)
-    }
-  }, [])
-
-  const login = useCallback(async (email: string, name: string, isFamilyHead = false) => {
-    try {
-      setError(null)
-      const response = await devLogin(email, name, isFamilyHead)
-      setAuthStorage(response.user, response.tokens)
-      setUser(response.user)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed'
-      setError(message)
-      throw err
-    }
+  const login = useCallback(async (_email: string, _name: string, _isFamilyHead = false) => {
+    setError(null)
+    // Always log in as the hardcoded test user — no backend required
+    setAuthStorage(TEST_USER, TEST_TOKENS)
+    setUser(TEST_USER)
   }, [])
 
   const logout = useCallback(async () => {
-    try {
-      await apiLogout()
-    } catch (err) {
-      console.error('Logout API error:', err)
-    } finally {
-      clearAuthStorage()
-      setUser(null)
-    }
+    clearAuthStorage()
+    setUser(null)
   }, [])
 
   const refreshUser = useCallback(async () => {
-    try {
-      const userData = await getCurrentUser()
-      setUser(userData)
-      // Update stored user
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('nxtvue_user', JSON.stringify(userData))
-      }
-    } catch (err) {
-      console.error('Failed to refresh user:', err)
-    }
+    // Nothing to refresh — test user is static
   }, [])
 
   return (

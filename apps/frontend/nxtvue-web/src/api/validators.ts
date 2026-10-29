@@ -227,7 +227,7 @@ export const PortfolioIntelligenceSchema = z.object({
     largest_position: z.object({
       symbol: z.string(),
       weight: z.string(),
-    }),
+    }).optional().default({ symbol: 'N/A', weight: '0.0%' }),
   }),
   sector_concentration: z.array(z.object({
     sector: z.string(),
@@ -244,8 +244,8 @@ export const PortfolioIntelligenceSchema = z.object({
     fund1: z.string(),
     fund2: z.string(),
     overlap: z.string(),
-    shared_holdings: z.number(),
-  })),
+    shared_holdings: z.number().optional().default(0),
+  })).optional().default([]),
   correlation_matrix: z.object({
     assets: z.array(z.string()),
     matrix: z.array(z.array(z.number())),
@@ -256,14 +256,14 @@ export const PortfolioIntelligenceSchema = z.object({
     current: z.string(),
     target: z.string(),
     reason: z.string(),
-  })),
+  })).optional().default([]),
   drawdown_periods: z.array(z.object({
     period: z.string(),
     peak: z.string(),
     trough: z.string(),
     drawdown: z.string(),
     recovery_days: z.union([z.number(), z.string()]),
-  })),
+  })).optional().default([]),
   data_gaps: z.array(z.string()),
   note: z.string(),
 })
@@ -387,12 +387,18 @@ export const IndMoneySnapshotSchema = z.object({
 export const IndMoneyWatchlistStockSchema = z.object({
   ind_key: z.string().nullable().optional(),
   ticker: z.string().nullable().optional(),
+  market: z.enum(['india', 'us']).default('us').optional(),
+  has_report: z.boolean().default(false).optional(),
+  price: z.number().nullable().optional(),
+  change_pct: z.number().nullable().optional(),
 })
 
 export const IndMoneyWatchlistGroupSchema = z.object({
   name: z.string(),
   watchlist_id: z.number(),
   stocks: z.array(IndMoneyWatchlistStockSchema),
+  us_count: z.number().default(0).optional(),
+  india_count: z.number().default(0).optional(),
 })
 
 export const IndMoneyWatchlistResponseSchema = z.object({

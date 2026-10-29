@@ -447,6 +447,18 @@ export async function fetchIndMoneyWatchlist(): Promise<IndMoneyWatchlistRespons
   return apiGet('/api/v1/indmoney/watchlist', (data) => IndMoneyWatchlistResponseSchema.parse(data))
 }
 
+export interface GeneratedReportItem {
+  filename: string
+  ticker: string
+  size: number
+  updated_at: number
+  url: string
+}
+
+export async function fetchGeneratedReports(): Promise<{ reports: GeneratedReportItem[] }> {
+  return apiGet('/api/v1/reports', (data) => data as { reports: GeneratedReportItem[] })
+}
+
 export type {
   IndMoneySnapshot,
   IndMoneyAllHoldings,

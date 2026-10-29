@@ -14,7 +14,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
       green: 'badge-green',
       red: 'badge-red',
       amber: 'badge-amber',
-      indigo: 'bg-indigo-500/15 border-indigo-500/20 text-indigo-400',
+      indigo: 'bg-indigo-500/15 border-indigo-500/20 text-indigo-600',
     }
 
     const sizes = {

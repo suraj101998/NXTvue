@@ -34,7 +34,7 @@ export const ChartContainer = forwardRef<HTMLDivElement, ChartContainerProps>(
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/50 backdrop-blur-sm z-10">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                 <span className="text-text-secondary text-sm">Loading chart...</span>
               </div>
             </div>
@@ -42,7 +42,7 @@ export const ChartContainer = forwardRef<HTMLDivElement, ChartContainerProps>(
           {error && (
             <div className="absolute inset-0 flex items-center justify-center bg-bg-primary/50 backdrop-blur-sm z-10 p-4 text-center">
               <div className="glass-card-strong p-6 max-w-md">
-                <svg className="w-10 h-10 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-10 h-10 text-red-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <p className="text-text-primary font-medium mb-1">Failed to load chart</p>
@@ -86,14 +86,14 @@ export const ReportTable = forwardRef<HTMLDivElement, ReportTableProps>(
   ({ className, headers, rows, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('overflow-x-auto mb-10 border border-white/10 rounded-xl bg-white/[0.02] backdrop-blur-md shadow-2xl', className)}
+      className={cn('overflow-x-auto mb-10 border border-slate-200 rounded-xl bg-white backdrop-blur-md shadow-2xl', className)}
       {...props}
     >
       <table className="w-full text-sm text-left whitespace-nowrap">
         <thead>
-          <tr className="border-b border-white/10 bg-white/[0.03]">
+          <tr className="border-b border-slate-200 bg-white">
             {headers.map((h, i) => (
-              <th key={i} className="px-5 py-4 font-heading font-medium text-white/90 tracking-wide">
+              <th key={i} className="px-5 py-4 font-heading font-medium text-slate-800 tracking-wide">
                 {h}
               </th>
             ))}
@@ -101,9 +101,9 @@ export const ReportTable = forwardRef<HTMLDivElement, ReportTableProps>(
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-white/5 last:border-0 hover:bg-white/[0.04] transition-colors duration-200">
+            <tr key={i} className="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors duration-200">
               {row.map((cell, j) => (
-                <td key={j} className={`px-5 py-3.5 font-body text-white/70 ${j === 0 ? 'font-medium text-white/80' : ''}`}>
+                <td key={j} className={`px-5 py-3.5 font-body text-slate-600 ${j === 0 ? 'font-medium text-slate-700' : ''}`}>
                   {cell}
                 </td>
               ))}

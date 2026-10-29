@@ -7,10 +7,8 @@ import { LoginPage } from '@/pages/login/LoginPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { AnalysisPage } from '@/pages/analysis/AnalysisPage'
 import { AnalysisHistoryPage } from '@/pages/analysis/AnalysisHistoryPage'
-import { ComparePage } from '@/pages/compare/ComparePage'
 import { PortfolioPage } from '@/pages/portfolio/PortfolioPage'
-import { PortfolioIntelligencePage } from '@/pages/intelligence/PortfolioIntelligencePage'
-import { SettingsPage } from '@/pages/settings/SettingsPage'
+import { ChartPage } from '@/pages/chart/ChartPage'
 import { PricingPage } from '@/pages/pricing/PricingPage'
 import { AboutPage } from '@/pages/about/AboutPage'
 
@@ -68,11 +66,21 @@ function App() {
               }
             />
             <Route
-              path="/compare"
+              path="/chart"
               element={
                 <ProtectedRoute>
                   <AppShell>
-                    <ComparePage />
+                    <ChartPage />
+                  </AppShell>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chart/:symbol"
+              element={
+                <ProtectedRoute>
+                  <AppShell>
+                    <ChartPage />
                   </AppShell>
                 </ProtectedRoute>
               }
@@ -83,26 +91,6 @@ function App() {
                 <ProtectedRoute>
                   <AppShell>
                     <PortfolioPage />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/portfolio/intelligence"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <PortfolioIntelligencePage />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <SettingsPage />
                   </AppShell>
                 </ProtectedRoute>
               }

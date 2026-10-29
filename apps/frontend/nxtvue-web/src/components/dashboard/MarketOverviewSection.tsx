@@ -1,7 +1,40 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { TrendingUp, TrendingDown, RefreshCw, ArrowRight, Activity, Zap } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import { useIndices, type IndexQuote } from '@/hooks/useIndices'
+import { TvWidget } from '@/components/charts/TvWidget'
+import { IndiaHeatmap } from '@/components/dashboard/IndiaHeatmap'
+import { HEATMAP_INDEX_BY_NAME } from '@/api/india'
+
+interface HeatmapSource {
+  /** TradingView heatmap `data-source` value. */
+  source: string
+  /** Shown when the heatmap is only the closest available match, not the index itself. */
+  note?: string
+}
+
+// TradingView's stock heatmap only offers a fixed list of data sources. There is no NIFTY source,
+// no sector-index filter, and no NSE exchange filter. Indian indices we can build ourselves
+// (HEATMAP_INDEX_BY_NAME) use our own live heatmap; the rest fall back to the BSE Sensex.
+const INDIA_FALLBACK_NOTE =
+  'No live constituent data for this index. This shows the 30 BSE Sensex stocks grouped by sector, the closest India data available.'
+
+const HEATMAP_SOURCES: Record<'india' | 'us', Record<string, HeatmapSource>> = {
+  india: {
+    SENSEX: { source: 'SENSEX' },
+  },
+  us: {
+    'S&P 500': { source: 'SPX500' },
+    NASDAQ: { source: 'NASDAQCOMPOSITE' },
+    'DOW JONES': { source: 'DJDJI' },
+    'RUSSELL 2000': { source: 'TVCRUT' },
+    'NASDAQ 100': { source: 'NASDAQ100' },
+    VIX: { source: 'SPX500', note: 'The VIX is a volatility index with no constituent stocks. This shows the S&P 500 it is derived from.' },
+  },
+}
+
+function heatmapFor(market: 'india' | 'us', name: string): HeatmapSource {
+  return HEATMAP_SOURCES[market][name] ?? (market === 'india' ? { source: 'SENSEX', note: INDIA_FALLBACK_NOTE } : { source: 'SPX500' })
+}
 
 // Rich SVG Flag for India
 export const IndiaFlagIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
@@ -35,9 +68,10 @@ export const USFlagIcon = ({ className = 'w-6 h-6' }: { className?: string }) =>
 )
 
 export function MarketOverviewSection() {
-  const navigate = useNavigate()
   const { data, loading, refresh, lastFetched } = useIndices()
   const [selectedMarket, setSelectedMarket] = useState<'india' | 'us'>('india')
+  const [activeIndex, setActiveIndex] = useState<{ market: 'india' | 'us'; name: string } | null>(null)
+  const heatmapRef = useRef<HTMLDivElement>(null)
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'broad' | 'sector' | 'volatility'>('all')
 
   const indicesList: IndexQuote[] = (data ? (selectedMarket === 'india' ? data.india : data.us) : []) || []
@@ -80,11 +114,15 @@ export function MarketOverviewSection() {
     })
   }
 
+  // Analyze renders the heatmap inline on this page; clicking the same card again closes it.
   const handleIndexClick = (indexName: string) => {
-    // Map index name to ticker query
-    const cleanTicker = indexName.replace(/\s+/g, '')
-    navigate(`/analysis?ticker=${cleanTicker}&market=${selectedMarket}`)
+    const same = activeIndex?.market === selectedMarket && activeIndex.name === indexName
+    setActiveIndex(same ? null : { market: selectedMarket, name: indexName })
+    if (!same) requestAnimationFrame(() => heatmapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
   }
+
+  const ownIndiaIndex = activeIndex?.market === 'india' ? HEATMAP_INDEX_BY_NAME[activeIndex.name] : undefined
+  const heatmap = activeIndex && !ownIndiaIndex ? heatmapFor(activeIndex.market, activeIndex.name) : null
 
   return (
     <section className="bg-[#F5F5F5] px-6 py-24" id="market-overview">
@@ -186,10 +224,49 @@ export function MarketOverviewSection() {
             ))}
           </div>
 
-          <div className="text-xs text-black/50 font-medium whitespace-nowrap">
+          <div className="text-xs text-black/65 font-medium whitespace-nowrap">
             {lastFetched ? `Updated ${lastFetched.toLocaleTimeString()}` : 'Live streaming'}
           </div>
         </div>
+
+        {/* Inline sector heatmap, opened by "Analyze" on an index card */}
+        {activeIndex && (heatmap || ownIndiaIndex) && (
+          <div ref={heatmapRef} className="mb-8 rounded-3xl bg-white border border-black/10 shadow-sm overflow-hidden" aria-label={`${activeIndex.name} heatmap`}>
+            <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-black/70">{activeIndex.name} heatmap</h3>
+                {heatmap?.note && <p className="mt-1 text-xs text-black/60 max-w-3xl">{heatmap.note}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveIndex(null)}
+                className="shrink-0 px-3 py-1.5 rounded-full border border-black/10 text-xs font-semibold text-black hover:bg-black hover:text-white transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+            {ownIndiaIndex ? (
+              <IndiaHeatmap key={ownIndiaIndex} index={ownIndiaIndex} label={activeIndex.name} height={560} />
+            ) : (
+              heatmap && (
+                <TvWidget
+                  key={`${activeIndex.market}:${heatmap.source}`}
+                  widget="heatmap"
+                  theme="light"
+                  height={560}
+                  options={{
+                    'heatmap-type': 'stock',
+                    'data-source': heatmap.source,
+                    grouping: 'sector',
+                    'block-size': 'market_cap_basic',
+                    'block-color': 'change',
+                    exchanges: '',
+                  }}
+                />
+              )
+            )}
+          </div>
+        )}
 
         {/* Indices Grid */}
         {loading && filteredIndices.length === 0 ? (
@@ -207,7 +284,6 @@ export function MarketOverviewSection() {
           </div>
         ) : filteredIndices.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border border-black/10">
-            <Activity className="w-10 h-10 text-black/30 mx-auto mb-3" />
             <p className="text-black font-semibold text-lg">No indices in this category</p>
             <p className="text-black/60 text-sm mt-1">Select "All Indices" to view all available market feeds.</p>
           </div>
@@ -221,7 +297,18 @@ export function MarketOverviewSection() {
                 <div
                   key={item.name}
                   onClick={() => handleIndexClick(item.name)}
-                  className="bg-white rounded-2xl p-6 border border-black/5 hover:border-black/20 hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer group relative overflow-hidden"
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={activeIndex?.market === selectedMarket && activeIndex.name === item.name}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleIndexClick(item.name)
+                    }
+                  }}
+                  className={`bg-white rounded-2xl p-6 border hover:border-black/20 hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
+                    activeIndex?.market === selectedMarket && activeIndex.name === item.name ? 'border-black ring-1 ring-black' : 'border-black/5'
+                  }`}
                 >
                   {/* Subtle top indicator bar */}
                   <div
@@ -233,7 +320,7 @@ export function MarketOverviewSection() {
                   {/* Header Row */}
                   <div className="flex items-start justify-between gap-2 mb-4">
                     <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-black/40 block mb-0.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-black/60 block mb-0.5">
                         {item.source} • {getIndexType(item.name)}
                       </span>
                       <h3 className="text-black font-semibold text-base group-hover:text-black tracking-tight">
@@ -272,8 +359,8 @@ export function MarketOverviewSection() {
                         {isPositive ? '+' : ''}
                         {formatNumber(item.change)} pts
                       </span>
-                      <span className="text-black/30 group-hover:text-black group-hover:translate-x-0.5 transition-all flex items-center gap-1 font-semibold">
-                        Analyze <ArrowRight className="w-3 h-3" />
+                      <span className="text-black/60 group-hover:text-black group-hover:translate-x-0.5 transition-all flex items-center gap-1 font-semibold">
+                        Analyze
                       </span>
                     </div>
                   </div>

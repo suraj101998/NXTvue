@@ -5,15 +5,13 @@ import { cn } from '@/utils/cn'
 import {
   LayoutDashboard,
   LineChart,
-  FolderOpen,
   BarChart2,
+  CandlestickChart,
   Info,
-  Sparkles,
   LogOut,
   Menu,
   X,
   ChevronRight,
-  Settings,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 
@@ -33,28 +31,22 @@ const NAV_ITEMS: NavItem[] = [
     description: 'Overview & market pulse',
   },
   {
+    label: 'Charts',
+    href: '/chart',
+    icon: <CandlestickChart className="w-4 h-4" />,
+    description: 'Interactive live charting',
+  },
+  {
     label: 'Analyze',
     href: '/analysis',
     icon: <LineChart className="w-4 h-4" />,
     description: 'Deep-dive any asset',
   },
   {
-    label: 'Reports',
-    href: '/compare',
-    icon: <FolderOpen className="w-4 h-4" />,
-    description: 'Your recent reports',
-  },
-  {
     label: 'My Portfolio',
     href: '/portfolio',
     icon: <BarChart2 className="w-4 h-4" />,
-    description: 'Holdings & intelligence',
-  },
-  {
-    label: 'Settings',
-    href: '/settings',
-    icon: <Settings className="w-4 h-4" />,
-    description: 'Preferences & profile',
+    description: 'Holdings & watchlist',
   },
   {
     label: 'About',
@@ -76,7 +68,8 @@ function NavPill({ items }: { items: NavItem[] }) {
     const activeHref = items.find(it => {
       if (it.href === '/dashboard') return location.pathname === '/dashboard'
       if (it.href === '/analysis')  return location.pathname.startsWith('/analysis')
-      if (it.href === '/portfolio')  return location.pathname.startsWith('/portfolio')
+      if (it.href === '/chart')     return location.pathname.startsWith('/chart')
+      if (it.href === '/portfolio') return location.pathname.startsWith('/portfolio')
       return location.pathname === it.href
     })?.href
 
@@ -95,7 +88,7 @@ function NavPill({ items }: { items: NavItem[] }) {
       {pill && (
         <motion.div
           layoutId="nav-pill"
-          className="absolute bottom-0 h-full rounded-xl bg-white/[0.06] border border-white/[0.1] pointer-events-none"
+          className="absolute bottom-0 h-full rounded-xl bg-slate-50 border border-slate-200 pointer-events-none"
           style={{ left: pill.left, width: pill.width }}
           transition={{ type: 'spring', stiffness: 400, damping: 34 }}
         />
@@ -107,7 +100,7 @@ function NavPill({ items }: { items: NavItem[] }) {
           ref={el => { refs.current[item.href] = el }}
           aria-current={location.pathname.startsWith(item.href) && item.href !== '/dashboard' ? 'page' :
             location.pathname === item.href ? 'page' : undefined}
-          className="relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors duration-200
+          className="relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors duration-200
             text-text-muted hover:text-text-primary"
         >
           {item.icon}
@@ -152,6 +145,7 @@ export function Navigation() {
     if (href === '/dashboard') return location.pathname === '/dashboard'
     if (href === '/analysis')  return location.pathname.startsWith('/analysis')
     if (href === '/portfolio')  return location.pathname.startsWith('/portfolio')
+    if (href === '/chart')      return location.pathname.startsWith('/chart')
     return location.pathname === href
   }
 
@@ -166,8 +160,8 @@ export function Navigation() {
       */}
       <div
         className={cn(
-          'w-full transition-all duration-250',
-          !scrolled && 'bg-[rgba(1,3,8,0.62)] backdrop-blur-[32px] border-b border-white/[0.06]',
+          'hidden lg:block w-full transition-all duration-250',
+          !scrolled && 'bg-white/95 backdrop-blur-xl border-b border-slate-200',
           scrolled  && 'bg-transparent',
         )}
       >
@@ -176,7 +170,7 @@ export function Navigation() {
           className={cn(
             'mx-auto transition-all duration-250',
             scrolled
-              ? 'mt-3 max-w-[1080px] px-4 pb-3'
+              ? 'mt-3 max-w-[1240px] px-4 pb-3'
               : 'max-w-[1800px] px-6 lg:px-10',
           )}
         >
@@ -186,10 +180,10 @@ export function Navigation() {
             scrolled
               ? [
                   'rounded-2xl',
-                  'bg-[rgba(5,9,20,0.80)]',
+                  'bg-white',
                   'backdrop-blur-[48px] saturate-[1.8]',
-                  'border border-white/[0.12]',
-                  'shadow-[0_8px_40px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.08)]',
+                  'border border-slate-300',
+                  'shadow-[0_8px_30px_rgba(15,23,42,0.12)]',
                 ].join(' ')
               : 'bg-transparent',
           )}
@@ -200,19 +194,14 @@ export function Navigation() {
             className="flex items-center gap-2.5 shrink-0 group"
             aria-label="NXTvue — go to dashboard"
           >
-            <svg className="w-6 h-[18px] text-white transition-opacity group-hover:opacity-80" viewBox="0 0 23 17" aria-hidden="true">
+            <svg className="w-6 h-[18px] text-slate-900 transition-opacity group-hover:opacity-80" viewBox="0 0 23 17" aria-hidden="true">
               <path d="M8.15 0.9 L4.55 0.9 L0.5 9.3 L4.1 9.3 Z" fill="currentColor" />
               <path d="M17.0 0 L13.4 0 L6.15 16.4 L9.75 16.4 Z" fill="currentColor" />
               <path d="M22.9 0 L19.3 0 L15.0 7.6 L18.6 7.6 Z" fill="currentColor" />
               <path d="M22.6 6.9 L19.0 6.9 L14.05 16.4 L17.65 16.4 Z" fill="currentColor" />
             </svg>
             <span
-              className="font-heading text-[17px] font-bold tracking-[0.08em]"
-              style={{
-                background: 'linear-gradient(180deg, #fff 0%, #94a3b8 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
+              className="font-heading text-[17px] font-bold tracking-[0.08em] text-slate-900"
             >
               NXTvue
             </span>
@@ -232,46 +221,19 @@ export function Navigation() {
             {/* Notification Bell */}
             <NotificationBell />
 
-            {/* See Plans — premium */}
+            {/* See Plans */}
             <Link
               to="/pricing"
-              className="relative flex items-center gap-2 px-4 py-[7px] rounded-xl text-sm font-semibold overflow-hidden group transition-all duration-300 hover:-translate-y-px"
-              style={{
-                background: 'linear-gradient(135deg, rgba(56,189,248,0.15) 0%, rgba(129,140,248,0.15) 100%)',
-                border: '1px solid rgba(56,189,248,0.32)',
-                color: '#bae6fd',
-                boxShadow: '0 0 20px rgba(56,189,248,0.12), inset 0 1px 0 rgba(255,255,255,0.07)',
-              }}
+              className="flex items-center px-4 py-2 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-blue-700 shadow-sm transition-colors duration-200"
             >
-              {/* Hover fill */}
-              <span
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
-                style={{ background: 'linear-gradient(135deg, rgba(56,189,248,0.25) 0%, rgba(129,140,248,0.25) 100%)' }}
-              />
-              {/* Shimmer sweep on hover */}
-              <span
-                className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none"
-                style={{ background: 'linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.12) 50%,transparent 65%)' }}
-              />
-              {/* Top prismatic line */}
-              <span
-                className="absolute inset-x-2 top-0 h-px pointer-events-none"
-                style={{ background: 'linear-gradient(90deg,transparent,rgba(56,189,248,0.8),rgba(168,148,255,0.6),transparent)' }}
-              />
-              {/* Bottom faint glow edge */}
-              <span
-                className="absolute inset-x-4 bottom-0 h-px pointer-events-none"
-                style={{ background: 'linear-gradient(90deg,transparent,rgba(56,189,248,0.2),transparent)' }}
-              />
-              <Sparkles className="relative z-10 w-3.5 h-3.5 text-[#38bdf8] group-hover:text-white transition-colors duration-200" />
-              <span className="relative z-10 tracking-wide group-hover:text-white transition-colors duration-200">See Plans</span>
+              See Plans
             </Link>
 
             {/* Logout — turns red on hover */}
             <button
               type="button"
               onClick={handleLogout}
-              className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-250 bg-white/[0.04] border border-white/[0.08] text-text-muted hover:bg-red-500/[0.1] hover:border-red-500/40 hover:text-red-400 hover:-translate-y-px hover:shadow-[0_0_18px_rgba(239,68,68,0.15)]"
+              className="group flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-250 bg-white border border-slate-300 text-slate-600 hover:bg-red-50 hover:border-red-300 hover:text-red-600"
             >
               <LogOut className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
               <span>Logout</span>
@@ -283,22 +245,17 @@ export function Navigation() {
 
       {/* ── Mobile header bar ──────────────────────────────────────────────── */}
       <div className="lg:hidden flex items-center justify-between h-[56px] px-5
-        bg-[rgba(1,3,8,0.75)] backdrop-blur-[32px] border-b border-white/[0.07]">
+        bg-white/95 backdrop-blur-xl border-b border-slate-200">
         {/* Brand */}
         <Link to="/dashboard" className="flex items-center gap-2.5" aria-label="NXTvue">
-          <svg className="w-5 h-[15px] text-white" viewBox="0 0 23 17" aria-hidden="true">
+          <svg className="w-5 h-[15px] text-slate-900" viewBox="0 0 23 17" aria-hidden="true">
             <path d="M8.15 0.9 L4.55 0.9 L0.5 9.3 L4.1 9.3 Z" fill="currentColor" />
             <path d="M17.0 0 L13.4 0 L6.15 16.4 L9.75 16.4 Z" fill="currentColor" />
             <path d="M22.9 0 L19.3 0 L15.0 7.6 L18.6 7.6 Z" fill="currentColor" />
             <path d="M22.6 6.9 L19.0 6.9 L14.05 16.4 L17.65 16.4 Z" fill="currentColor" />
           </svg>
           <span
-            className="font-heading text-base font-bold tracking-[0.08em]"
-            style={{
-              background: 'linear-gradient(180deg,#fff 0%,#94a3b8 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
+            className="font-heading text-base font-bold tracking-[0.08em] text-slate-900"
           >
             NXTvue
           </span>
@@ -309,7 +266,7 @@ export function Navigation() {
           <NotificationBell />
           {/* Hamburger */}
           <button
-            className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+            className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-50 transition-colors"
             onClick={() => setMobileOpen(v => !v)}
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -330,7 +287,7 @@ export function Navigation() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[290] bg-black/60 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[290] bg-slate-900/40 backdrop-blur-sm lg:hidden"
               onClick={() => setMobileOpen(false)}
             />
 
@@ -344,34 +301,29 @@ export function Navigation() {
               className={cn(
                 'fixed top-0 right-0 bottom-0 z-[295] w-[300px] lg:hidden',
                 'flex flex-col',
-                'bg-[rgba(4,7,18,0.96)] backdrop-blur-[60px]',
-                'border-l border-white/[0.08]',
-                'shadow-[-40px_0_80px_rgba(0,0,0,0.6)]',
+                'bg-white',
+                'border-l border-slate-200',
+                'shadow-[-20px_0_50px_rgba(15,23,42,0.15)]',
               )}
             >
               {/* Drawer header */}
-              <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.07]">
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
                 <div className="flex items-center gap-2.5">
-                  <svg className="w-5 h-[15px] text-white" viewBox="0 0 23 17" aria-hidden="true">
+                  <svg className="w-5 h-[15px] text-slate-900" viewBox="0 0 23 17" aria-hidden="true">
                     <path d="M8.15 0.9 L4.55 0.9 L0.5 9.3 L4.1 9.3 Z" fill="currentColor" />
                     <path d="M17.0 0 L13.4 0 L6.15 16.4 L9.75 16.4 Z" fill="currentColor" />
                     <path d="M22.9 0 L19.3 0 L15.0 7.6 L18.6 7.6 Z" fill="currentColor" />
                     <path d="M22.6 6.9 L19.0 6.9 L14.05 16.4 L17.65 16.4 Z" fill="currentColor" />
                   </svg>
                   <span
-                    className="font-heading text-base font-bold tracking-[0.08em]"
-                    style={{
-                      background: 'linear-gradient(180deg,#fff 0%,#94a3b8 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                    }}
+                    className="font-heading text-base font-bold tracking-[0.08em] text-slate-900"
                   >
                     NXTvue
                   </span>
                 </div>
                 <button
                   onClick={() => setMobileOpen(false)}
-                  className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+                  className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-slate-50 transition-colors"
                   aria-label="Close menu"
                 >
                   <X className="w-5 h-5" />
@@ -393,14 +345,14 @@ export function Navigation() {
                       className={cn(
                         'flex items-center justify-between px-4 py-3.5 rounded-xl transition-all duration-200',
                         isActive(item.href)
-                          ? 'bg-white/[0.07] border border-white/[0.1] text-text-primary'
-                          : 'text-text-muted hover:bg-white/[0.04] hover:text-text-primary',
+                          ? 'bg-slate-100 border border-slate-200 text-text-primary'
+                          : 'text-text-muted hover:bg-slate-50 hover:text-text-primary',
                       )}
                     >
                       <div className="flex items-center gap-3">
                         <span className={cn(
                           'p-2 rounded-lg',
-                          isActive(item.href) ? 'bg-[rgba(56,189,248,0.12)] text-[#38bdf8]' : 'bg-white/[0.05] text-text-muted'
+                          isActive(item.href) ? 'bg-blue-100 text-blue-700' : 'bg-slate-50 text-text-muted'
                         )}>
                           {item.icon}
                         </span>
@@ -418,34 +370,19 @@ export function Navigation() {
               </nav>
 
               {/* Bottom CTA buttons */}
-              <div className="px-4 pb-8 pt-4 border-t border-white/[0.07] space-y-3">
-                {/* See Plans — premium mobile */}
+              <div className="px-4 pb-8 pt-4 border-t border-slate-200 space-y-3">
                 <Link
                   to="/pricing"
                   onClick={() => setMobileOpen(false)}
-                  className="relative w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl overflow-hidden group transition-all duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg,rgba(56,189,248,0.15) 0%,rgba(129,140,248,0.15) 100%)',
-                    border: '1px solid rgba(56,189,248,0.32)',
-                    color: '#bae6fd',
-                  }}
+                  className="w-full flex items-center justify-center px-4 py-3 rounded-xl text-sm font-semibold text-white bg-slate-900 hover:bg-blue-700 transition-colors"
                 >
-                  <span
-                    className="absolute inset-x-2 top-0 h-px pointer-events-none"
-                    style={{ background: 'linear-gradient(90deg,transparent,rgba(56,189,248,0.8),rgba(168,148,255,0.6),transparent)' }}
-                  />
-                  <span
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                    style={{ background: 'linear-gradient(135deg,rgba(56,189,248,0.25) 0%,rgba(129,140,248,0.25) 100%)' }}
-                  />
-                  <Sparkles className="relative z-10 w-4 h-4 text-[#38bdf8]" />
-                  <span className="relative z-10 text-sm font-semibold">See Plans</span>
+                  See Plans
                 </Link>
                 {/* Logout — red hover mobile */}
                 <button
                   type="button"
                   onClick={() => { setMobileOpen(false); handleLogout() }}
-                  className="group w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-text-muted bg-white/[0.04] border border-white/[0.08] hover:bg-red-500/[0.1] hover:border-red-500/40 hover:text-red-400 transition-all duration-200"
+                  className="group w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all duration-200"
                 >
                   <LogOut className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                   Logout

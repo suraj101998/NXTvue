@@ -96,7 +96,7 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
       pills: cn(
         'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
         isActive
-          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+          ? 'bg-blue-500/20 text-blue-600 border border-blue-500/30'
           : 'text-text-secondary hover:text-text-primary hover:bg-bg-glass'
       ),
       underline: cn(

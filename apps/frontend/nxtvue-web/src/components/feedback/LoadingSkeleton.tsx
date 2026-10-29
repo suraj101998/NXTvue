@@ -9,7 +9,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        'animate-pulse rounded-xl bg-white/[0.06] border border-white/[0.04]',
+        'animate-pulse rounded-xl bg-slate-50 border border-slate-200',
         className
       )}
       {...props}
@@ -63,14 +63,14 @@ export function SkeletonTable({
 }) {
   return (
     <div className={cn('glass-card overflow-hidden animate-pulse', className)}>
-      <div className="p-4 border-b border-white/[0.06] bg-white/[0.02]">
+      <div className="p-4 border-b border-slate-200 bg-white">
         <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton key={i} className="h-4 w-3/4" />
           ))}
         </div>
       </div>
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-slate-200">
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <div key={rowIndex} className="p-4">
             <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
@@ -111,7 +111,7 @@ export function SkeletonChart({ className }: { className?: string }) {
 export function SkeletonReport({ className }: { className?: string }) {
   return (
     <div className={cn('glass-card p-8 animate-pulse space-y-6', className)}>
-      <div className="border-b border-white/[0.08] pb-6 space-y-3">
+      <div className="border-b border-slate-200 pb-6 space-y-3">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-48" />
       </div>
@@ -122,7 +122,7 @@ export function SkeletonReport({ className }: { className?: string }) {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-4 bg-white/[0.03] rounded-xl space-y-2">
+          <div key={i} className="p-4 bg-white rounded-xl space-y-2">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-6 w-24" />
           </div>

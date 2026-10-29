@@ -46,7 +46,7 @@ export function ErrorState({ className, variant = 'default', title, description,
   return (
     <div className={cn('flex flex-col items-center justify-center text-center py-16 px-6', className)} {...props}>
       <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
-        <Icon className="w-8 h-8 text-red-400" />
+        <Icon className="w-8 h-8 text-red-600" />
       </div>
       <h3 className="font-heading text-xl font-semibold text-text-primary mb-2">
         {title || config.title}
@@ -68,7 +68,7 @@ export function InlineError({ message, onRetry, retryLabel = 'Retry' }: { messag
   return (
     <div className="glass-card p-4 border-l-4 border-red-500/50 bg-red-500/5 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 flex-1">
-        <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
+        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
         <p className="text-text-secondary text-sm">{message}</p>
       </div>
       {onRetry && (
