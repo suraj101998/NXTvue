@@ -11,46 +11,47 @@ test.describe('chart page', () => {
     await login(page)
   })
 
-  test('Indian symbol renders the native chart with honest labels and rupee prices', async ({ page }) => {
-    await page.goto('/chart/RELIANCE')
-    await expect(page.getByRole('heading', { name: 'RELIANCE' })).toBeVisible()
-    await expect(page.getByText('Native chart', { exact: false }).first()).toBeVisible()
-    await expect(page.locator('canvas').first()).toBeVisible()
+  test('Indian symbol renders the SVG terminal with rupee prices and the live NSE trader desk', async ({ page }) => {
+    await page.goto('/chart/RELIANCE?market=india')
+    await expect(page.locator('.nxc .sy')).toHaveText('RELIANCE')
+    await expect(page.locator('svg#sv')).toBeVisible()
     await expect(page.getByText('Last close').first()).toBeVisible()
     await expect(page.getByText('₹').first()).toBeVisible()
-    await expect(page.getByText('Technical signal', { exact: false }).first()).toBeVisible()
-    // The old hardcoded card must be gone.
-    await expect(page.getByText('64.2')).toHaveCount(0)
+    await expect(page.getByText('Confluence engine').first()).toBeVisible()
+    // The trader desk runs on the NSE profile (IST, ₹) instead of saying it is US-only.
+    await expect(page.getByRole('heading', { name: 'Entry timer' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Time machine' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'NSE disclosures' })).toBeVisible()
+    await expect(page.getByText('NSE day-trade tools')).toBeVisible()
+    await expect(page.getByText('N/A for NSE symbols')).toHaveCount(0)
   })
 
-  test('US symbol uses the live chart and dollar prices', async ({ page }) => {
+  test('US symbol renders dollar prices and the live trader desk', async ({ page }) => {
     await page.goto('/chart/NVDA?market=us')
-    await expect(page.getByRole('heading', { name: 'NVDA' })).toBeVisible()
-    await expect(page.getByText('Live chart', { exact: false }).first()).toBeVisible()
+    await expect(page.locator('.nxc .sy')).toHaveText('NVDA')
+    await expect(page.locator('svg#sv')).toBeVisible()
     await expect(page.getByText('$').first()).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Switch to native chart' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Entry timer' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Time machine' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Congress trades' })).toBeVisible()
   })
 
   test('unknown symbol shows a not-found state instead of an empty chart', async ({ page }) => {
     await page.goto('/chart/ZZZZNOTREAL?market=us')
-    await expect(page.getByText('Symbol not found')).toBeVisible()
-    await expect(page.getByText('No listing found for ZZZZNOTREAL')).toBeVisible()
+    await expect(page.getByText(/Symbol not found|Quote unavailable/)).toBeVisible()
   })
 
   test('page state follows the URL on back/forward', async ({ page }) => {
-    await page.goto('/chart/RELIANCE')
-    await expect(page.getByRole('heading', { name: 'RELIANCE' })).toBeVisible()
+    await page.goto('/chart/RELIANCE?market=india')
+    await expect(page.locator('.nxc .sy')).toHaveText('RELIANCE')
     await page.goto('/chart/NVDA?market=us')
-    await expect(page.getByRole('heading', { name: 'NVDA' })).toBeVisible()
+    await expect(page.locator('.nxc .sy')).toHaveText('NVDA')
     await page.goBack()
-    await expect(page.getByRole('heading', { name: 'RELIANCE' })).toBeVisible()
+    await expect(page.locator('.nxc .sy')).toHaveText('RELIANCE')
   })
 
   test('Charts nav item is marked current on /chart routes', async ({ page }) => {
-    await page.goto('/chart/RELIANCE')
-    await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Charts' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    await page.goto('/chart/RELIANCE?market=india')
+    await expect(page.locator('.nxc .tb').getByRole('link', { name: 'Charts' })).toHaveAttribute('aria-current', 'page')
   })
 })

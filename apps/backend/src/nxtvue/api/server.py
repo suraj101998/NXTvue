@@ -7,6 +7,7 @@ import os
 import re
 import tempfile
 import time
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -33,10 +34,26 @@ from ..portfolio.routes import router as portfolio_router
 from ..portfolio.indmoney_routes import router as indmoney_router
 from .market_gateway import router as market_router
 from .india_data import router as india_router
+from .us_data import router as us_router
+from .trader_desk import router as desk_router
 
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Keep the INDmoney login warm in the background for as long as the server runs."""
+    from ..tools.indmoney_oauth import keep_alive_loop
+
+    task = asyncio.create_task(keep_alive_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="NXTvue API",
     description="Multi-asset investment analysis API",
     version="0.1.0",
@@ -57,6 +74,8 @@ app.include_router(portfolio_router, prefix="/api/v1")
 app.include_router(indmoney_router, prefix="/api/v1")
 app.include_router(market_router, prefix="/api/v1")
 app.include_router(india_router, prefix="/api/v1")
+app.include_router(us_router, prefix="/api/v1")
+app.include_router(desk_router, prefix="/api/v1")
 
 # ---------------------------------------------------------------------------
 # In-memory cache for live indices (avoids hammering yfinance on every request)

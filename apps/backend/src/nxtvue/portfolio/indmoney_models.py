@@ -1,7 +1,18 @@
 """Pydantic models for INDmoney MCP API responses."""
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+def _number_or_none(value: Any) -> Any:
+    """INDmoney sometimes sends a placeholder string ("unknown", "N/A", "") where a number belongs
+    (e.g. a bond it has no price for). Treat that as "no value" instead of failing the whole response."""
+    if isinstance(value, str):
+        try:
+            return float(value.replace(",", ""))
+        except ValueError:
+            return None
+    return value
 
 
 # ─── Shared ───────────────────────────────────────────────────────────────────
@@ -14,6 +25,14 @@ class AssetSummary(BaseModel):
     total_value_usd: Optional[float] = None
     invested_usd: Optional[float] = None
     one_day_change_usd: Optional[float] = None
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _clean_numbers(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            parsed = _number_or_none(v)
+            return 0 if parsed is None else parsed
+        return v
 
 
 # ─── Holdings ─────────────────────────────────────────────────────────────────
@@ -34,6 +53,19 @@ class IndMoneyHolding(BaseModel):
     market_cap: Optional[str] = None
     one_day_change: float = 0
     one_day_change_percentage: float = 0
+
+    @field_validator(
+        "invested_amount", "market_value", "holding_percent", "total_pnl", "pnl_per",
+        "total_units", "unit_price", "one_day_change", "one_day_change_percentage",
+        mode="before",
+    )
+    @classmethod
+    def _clean_numbers(cls, v: Any, info) -> Any:
+        v = _number_or_none(v)
+        if v is None:
+            # Optional fields stay unset; required-with-default ones fall back to 0.
+            return None if info.field_name in ("total_units", "unit_price") else 0
+        return v
 
 
 class HoldingsResponse(BaseModel):

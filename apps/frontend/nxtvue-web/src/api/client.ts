@@ -262,6 +262,22 @@ async function fetchWithTimeout(
   }
 }
 
+/**
+ * Read a JSON body, turning any non-2xx answer into an ApiError that carries the backend's `detail`.
+ * Without this a `{detail: ...}` error body would be handed to the schema validator and surface as a
+ * wall of "expected number, received undefined" messages.
+ */
+async function readJson(response: Response): Promise<unknown> {
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch {
+    body = undefined
+  }
+  if (!response.ok) throw ApiError.fromResponse(response, body)
+  return body
+}
+
 export async function apiGet<T>(
   path: string,
   validator: (data: unknown) => T,
@@ -279,8 +295,7 @@ export async function apiGet<T>(
       ...options,
     })
 
-    const data = await response.json()
-    return validator(data)
+    return validator(await readJson(response))
   }, {
     maxRetries: options.timeoutMs ? 0 : 2, // Don't retry if custom timeout (likely user-initiated)
     onRetry: (attempt, error) => logger.info(`Retry ${attempt} for GET ${path}:`, error.message),
@@ -307,8 +322,7 @@ export async function apiPost<T>(
       ...options,
     })
 
-    const data = await response.json()
-    return validator(data)
+    return validator(await readJson(response))
   }, {
     onRetry: (attempt, error) => logger.info(`Retry ${attempt} for POST ${path}:`, error.message),
   })
@@ -333,8 +347,7 @@ export async function apiPostForm<T>(
       ...options,
     })
 
-    const data = await response.json()
-    return validator(data)
+    return validator(await readJson(response))
   }, {
     onRetry: (attempt, error) => logger.info(`Retry ${attempt} for POST ${path}:`, error.message),
   })
@@ -445,6 +458,20 @@ export async function fetchIndMoneyHoldingsByType(assetType: string): Promise<In
 
 export async function fetchIndMoneyWatchlist(): Promise<IndMoneyWatchlistResponse> {
   return apiGet('/api/v1/indmoney/watchlist', (data) => IndMoneyWatchlistResponseSchema.parse(data))
+}
+
+/** Ask the backend to mint a fresh INDmoney access token. Throws ApiError(INDMONEY_REAUTH) if the link is dead. */
+export async function refreshIndMoneyToken(): Promise<void> {
+  await apiPost('/api/v1/indmoney/token/refresh', {}, () => undefined)
+}
+
+/** Start the INDmoney sign-in: returns the consent URL the browser should navigate to. */
+export async function startIndMoneyConnect(): Promise<string> {
+  return apiPost('/api/v1/indmoney/connect', {}, (data) => {
+    const url = (data as { authorize_url?: unknown } | null)?.authorize_url
+    if (typeof url !== 'string' || !url.startsWith('https://')) throw new Error('Invalid sign-in URL from server')
+    return url
+  })
 }
 
 export interface GeneratedReportItem {

@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | 'VALIDATION_ERROR'
   | 'SERVER_ERROR'
   | 'RATE_LIMITED'
+  | 'INDMONEY_REAUTH'
   | 'SSE_PARSE_ERROR'
   | 'SSE_CONNECTION_LOST'
   | 'UNKNOWN_ERROR'
@@ -20,6 +21,25 @@ export interface ApiErrorDetails {
   originalError?: Error
   retryable: boolean
   retryAfter?: number // seconds
+  /** Machine code the backend sent in `detail.code`, e.g. indmoney_reauth_required. */
+  serverCode?: string
+  /** Human message the backend sent in `detail` / `detail.message`. */
+  serverMessage?: string
+}
+
+/** Backend `detail` is either a plain string or an object like { code, reason, message }. */
+function readDetail(body: unknown): { code?: string; message?: string } {
+  if (!body || typeof body !== 'object' || !('detail' in body)) return {}
+  const d = (body as { detail: unknown }).detail
+  if (typeof d === 'string') return { message: d }
+  if (d && typeof d === 'object') {
+    const o = d as Record<string, unknown>
+    return {
+      code: typeof o.code === 'string' ? o.code : undefined,
+      message: typeof o.message === 'string' ? o.message : undefined,
+    }
+  }
+  return {}
 }
 
 export class ApiError extends Error {
@@ -28,6 +48,8 @@ export class ApiError extends Error {
   public readonly retryable: boolean
   public readonly retryAfter?: number
   public readonly originalError?: Error
+  public readonly serverCode?: string
+  public readonly serverMessage?: string
 
   constructor(details: ApiErrorDetails) {
     super(details.message)
@@ -37,6 +59,8 @@ export class ApiError extends Error {
     this.retryable = details.retryable
     this.retryAfter = details.retryAfter
     this.originalError = details.originalError
+    this.serverCode = details.serverCode
+    this.serverMessage = details.serverMessage
   }
 
   static fromResponse(response: Response, body?: unknown): ApiError {
@@ -46,6 +70,7 @@ export class ApiError extends Error {
     let retryable = false
     let retryAfter: number | undefined
 
+    const server = readDetail(body)
     const retryAfterHeader = response.headers.get('Retry-After')
     if (retryAfterHeader) {
       retryAfter = parseInt(retryAfterHeader, 10)
@@ -75,6 +100,15 @@ export class ApiError extends Error {
         code = 'NOT_FOUND'
         message = 'The requested resource was not found.'
         break
+      case 424:
+        if (server.code === 'indmoney_reauth_required') {
+          code = 'INDMONEY_REAUTH'
+          message = server.message ?? 'Your INDmoney connection has expired. Reconnect to see live portfolio data.'
+          break
+        }
+        code = 'UNKNOWN_ERROR'
+        message = server.message ?? `Unexpected error (${status})`
+        break
       case 429:
         code = 'RATE_LIMITED'
         message = 'Too many requests. Please wait a moment.'
@@ -93,7 +127,7 @@ export class ApiError extends Error {
         message = `Unexpected error (${status})`
     }
 
-    return new ApiError({ code, status, message, retryable, retryAfter })
+    return new ApiError({ code, status, message, retryable, retryAfter, serverCode: server.code, serverMessage: server.message })
   }
 
   static fromError(error: Error, defaultCode: ApiErrorCode = 'UNKNOWN_ERROR'): ApiError {
@@ -165,6 +199,8 @@ export class ApiError extends Error {
         return this.message
       case 'RATE_LIMITED':
         return 'Too many requests. Please wait a moment and try again.'
+      case 'INDMONEY_REAUTH':
+        return this.message
       case 'SERVER_ERROR':
         return 'Our servers are experiencing issues. Please try again later.'
       case 'SSE_PARSE_ERROR':
@@ -179,6 +215,11 @@ export class ApiError extends Error {
   // Whether to show retry button in UI
   get shouldShowRetry(): boolean {
     return this.retryable && this.code !== 'UNAUTHORIZED' && this.code !== 'FORBIDDEN'
+  }
+
+  /** The INDmoney link was revoked or expired: retrying cannot help, the user has to sign in again. */
+  get needsReconnect(): boolean {
+    return this.code === 'INDMONEY_REAUTH'
   }
 }
 

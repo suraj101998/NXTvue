@@ -9,9 +9,11 @@ import { cn } from '@/utils/cn'
 
 interface NotificationBellProps {
   className?: string
+  /** Replaces the default button styling (used where the host page has its own icon-button style). */
+  triggerClassName?: string
 }
 
-export function NotificationBell({ className }: NotificationBellProps) {
+export function NotificationBell({ className, triggerClassName }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const { unreadCount } = useNotifications()
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -52,17 +54,21 @@ export function NotificationBell({ className }: NotificationBellProps) {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={cn(
-          'relative p-2 rounded-xl transition-all duration-200',
-          isOpen ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
-        )}
+        className={
+          triggerClassName
+            ? cn(triggerClassName, unreadCount > 0 && 'dot')
+            : cn(
+                'relative p-2 rounded-xl transition-all duration-200',
+                isOpen ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+              )
+        }
         aria-label="Top market stories"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         title="Top market stories"
       >
         <Bell className="w-4 h-4" aria-hidden="true" />
-        {unreadCount > 0 && (
+        {!triggerClassName && unreadCount > 0 && (
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" aria-hidden="true" />
         )}
       </button>

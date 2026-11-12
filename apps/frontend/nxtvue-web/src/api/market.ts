@@ -1,7 +1,7 @@
 import { buildApiUrl } from '@/api/config'
 import type { HistoryMarket } from '@/utils/resolveSymbol'
 
-export type Interval = '5m' | '15m' | '60m' | '1d' | '1wk' | '1mo'
+export type Interval = '5m' | '15m' | '30m' | '60m' | '1d' | '1wk' | '1mo'
 
 export interface Candle {
   /** 'YYYY-MM-DD' for daily and longer, epoch seconds (UTC) for intraday. */

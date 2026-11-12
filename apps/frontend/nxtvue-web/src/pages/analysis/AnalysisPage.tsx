@@ -1,21 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { ReportTable } from '@/components/charts/ChartContainer'
+/**
+ * AnalysisPage — dark-theme institutional report page.
+ *
+ * Visual design: port of the NXTvue reference HTML (aurora bg, glassmorphism,
+ * mascot with eye-tracking, scroll-reveal, section jump-bar, footer CTA).
+ * All wiring kept identical to the original (fetch → /api/v1/analysis/:ticker,
+ * SSE via useAnalysis hook, A.R.I.A chat via /api/v1/chat).
+ * Nothing hard-coded — everything comes from the DynamicReport API response.
+ */
+
+import './analysis.css'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useParams, useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAnalysis } from '@/hooks/useAnalysis'
+import { GlassCard, KpiCard, Note, Rev } from './reportUi'
+import { Bullets, SectionBody } from './reportSections'
+import { KIND_LABEL, deriveChips, deriveHeroKpis, parseValuation, parseVerdict, sectionKind } from './reportParser'
+import type { SectionKind } from './reportParser'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import {
-  FileText,
-  RefreshCw,
-  AlertCircle,
-  ArrowLeft,
-  ChevronRight,
-  ShieldAlert,
+  LayoutDashboard, CandlestickChart, LineChart, BarChart2, Info,
+  Menu, X, Sun, Moon, RefreshCw, AlertCircle, ChevronRight,
 } from 'lucide-react'
 
+/* ─── Public types (kept for importers) ─────────────────────────────────────── */
 export interface AnalysisSection {
   title: string
   content: string
 }
-
 export interface DynamicReport {
   symbol: string
   name: string
@@ -30,667 +41,738 @@ export interface DynamicReport {
   full_text?: string
 }
 
+/** Callback ref: reveals the element (adds `in`) the first time it scrolls into view. */
+const revealOnce = (el: HTMLElement | null) => {
+  if (!el) return
+  const io = new IntersectionObserver(([e]) => {
+    if (e.isIntersecting) { el.classList.add('in'); io.disconnect() }
+  }, { threshold: 0.12 })
+  io.observe(el)
+}
+
+/* ─── Aurora canvas ──────────────────────────────────────────────────────────── */
+function AuroraCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const c = ref.current
+    if (!c) return
+    const x = c.getContext('2d')!
+    let t = 0, rafId = 0
+    type Blob = [number, number, string, number]
+    const blobs: Blob[] = [
+      [0.2, 0.25, '124,156,255', 0.55], [0.8, 0.2, '180,140,255', 0.5],
+      [0.6, 0.8, '255,158,196', 0.4], [0.15, 0.85, '74,222,154', 0.3],
+    ]
+    const resize = () => { c.width = innerWidth; c.height = innerHeight }
+    resize()
+    window.addEventListener('resize', resize)
+    const draw = () => {
+      t += 0.0035
+      x.clearRect(0, 0, c.width, c.height)
+      blobs.forEach(([bx, by, col, sr], i) => {
+        const px = (bx + Math.sin(t * 1.3 + i * 2) * 0.14) * c.width
+        const py = (by + Math.cos(t + i * 1.7) * 0.14) * c.height
+        const r = Math.max(c.width, c.height) * sr
+        const g = x.createRadialGradient(px, py, 0, px, py, r)
+        g.addColorStop(0, `rgba(${col},.3)`)
+        g.addColorStop(1, `rgba(${col},0)`)
+        x.fillStyle = g; x.fillRect(0, 0, c.width, c.height)
+      })
+      rafId = requestAnimationFrame(draw)
+    }
+    draw()
+    return () => { window.removeEventListener('resize', resize); cancelAnimationFrame(rafId) }
+  }, [])
+  return <canvas ref={ref} id="aurora" />
+}
+
+/* ─── Eye-tracking mascot ────────────────────────────────────────────────────── */
+const EYE_DEFS = [
+  { id: 'eyeL', src: '/analysis/eye-left.png', left: '38.08%', top: '41.51%', w: '9.684%', h: '8.864%', cw: 73.6, cx: 36.8, cy: 36.3, rx: 27, ry: 24, x0: 58.6, y0: 39.5, iw: '57.1%', il: '79.6%', it: '54.4%' },
+  { id: 'eyeR', src: '/analysis/eye-right.png', left: '53.55%', top: '41.76%', w: '6.711%', h: '8.669%', cw: 51, cx: 25.5, cy: 35.5, rx: 18, ry: 24, x0: 37, y0: 38, iw: '66.7%', il: '72.5%', it: '53.5%' },
+]
+
+function MascotEyes() {
+  const irisRefs = useRef<Record<string, HTMLImageElement | null>>({})
+  const pos = useRef<Record<string, { x: number; y: number }>>({ eyeL: { x: 0, y: 0 }, eyeR: { x: 0, y: 0 } })
+  const mouse = useRef<{ x: number | null; y: number | null }>({ x: null, y: null })
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => { mouse.current = { x: e.clientX, y: e.clientY } }
+    const onLeave = () => { mouse.current = { x: null, y: null } }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    document.addEventListener('pointerleave', onLeave)
+    let rafId = 0
+    const tick = () => {
+      EYE_DEFS.forEach((d) => {
+        const ir = irisRefs.current[d.id]
+        if (!ir) return
+        const el = ir.closest('.eye') as HTMLElement | null
+        if (!el) return
+        const { x: px, y: py } = mouse.current
+        let tx = 0, ty = 0
+        const sc = el.offsetWidth / d.cw
+        if (px !== null && py !== null && sc > 0) {
+          const rect = el.getBoundingClientRect()
+          const dx = px - (rect.left + rect.width / 2)
+          const dy = py - (rect.top + rect.height / 2)
+          const dist = Math.hypot(dx, dy) || 1
+          const am = Math.pow(Math.min(1, dist / 170), 0.7)
+          tx = (d.cx + (dx / dist) * am * d.rx - d.x0) * sc
+          ty = (d.cy + (dy / dist) * am * d.ry - d.y0) * sc
+        }
+        const p = pos.current[d.id]
+        p.x += (tx - p.x) * 0.2
+        p.y += (ty - p.y) * 0.2
+        ir.style.transform = `translate(-50%,-50%) translate(${p.x.toFixed(2)}px,${p.y.toFixed(2)}px)`
+      })
+      rafId = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => { window.removeEventListener('pointermove', onMove); document.removeEventListener('pointerleave', onLeave); cancelAnimationFrame(rafId) }
+  }, [])
+
+  return (
+    <>
+      {EYE_DEFS.map((d) => (
+        <div key={d.id} id={d.id} className="eye" style={{ left: d.left, top: d.top, width: d.w, height: d.h }}>
+          <img className="ir" alt="" ref={(el) => { irisRefs.current[d.id] = el }} src={d.src} style={{ left: d.il, top: d.it, width: d.iw }} />
+        </div>
+      ))}
+    </>
+  )
+}
+
+/* ─── Nav items (mirrors Navigation.tsx — kept local to avoid coupling) ──────── */
+const NAV = [
+  { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { label: 'Charts',    href: '/chart',     icon: <CandlestickChart  className="w-4 h-4" /> },
+  { label: 'Analyze',   href: '/analysis',  icon: <LineChart         className="w-4 h-4" /> },
+  { label: 'My Portfolio', href: '/portfolio', icon: <BarChart2      className="w-4 h-4" /> },
+  { label: 'About',     href: '/about',     icon: <Info              className="w-4 h-4" /> },
+]
+
+/** Jump-bar entries. Bullish / bearish triggers render inside "Key risks", as in the design. */
+interface JumpItem { slug: string; label: string; num: string }
+const NESTED: SectionKind[] = ['bullish', 'bearish']
+
+function buildJumpItems(sections: AnalysisSection[]): JumpItem[] {
+  return sections.flatMap((sec, idx) => {
+    const kind = sectionKind(sec.title)
+    if (NESTED.includes(kind)) return []
+    const num = sec.title.match(/^\s*(\d+)\./)?.[1] ?? String(idx + 1)
+    const label = kind === 'other' ? sec.title.replace(/^\d+\.\s*/, '') : KIND_LABEL[kind]
+    return [{ slug: kind === 'other' ? `sec-${idx}` : kind, label, num: num.padStart(2, '0') }]
+  })
+}
+
+/* ─── Top navigation bar ─────────────────────────────────────────────────────── */
+function ReportTopbar({ symbol, items }: { symbol?: string; items: JumpItem[] }) {
+  const navigate    = useNavigate()
+  const { pathname } = useLocation()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [secShow, setSecShow] = useState(false)
+  const [secActive, setSecActive] = useState('top')
+
+  // Section spy + secbar visibility
+  useEffect(() => {
+    const ids = ['top', ...items.map((i) => i.slug)]
+    const onScroll = () => {
+      setSecShow(window.scrollY > window.innerHeight * 0.6)
+      let cur = 'top'
+      ids.forEach((id) => {
+        const el = document.getElementById(id)
+        if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = id
+      })
+      setSecActive(cur)
+      const prog = document.getElementById('nxr-prog')
+      if (prog) {
+        const h = document.documentElement.scrollHeight
+        prog.style.width = `${(window.scrollY / (h - window.innerHeight)) * 100}%`
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [items])
+
+  // Scroll active secbar link into view
+  useEffect(() => {
+    const sb = document.getElementById('nxr-secbar')
+    if (!sb || !secShow) return
+    const active = sb.querySelector<HTMLAnchorElement>('a.on')
+    if (active) sb.scrollTo({ left: active.offsetLeft - sb.clientWidth / 2 + active.offsetWidth / 2, behavior: 'smooth' })
+  }, [secActive, secShow])
+
+  const isActive = (href: string) => {
+    if (href === '/dashboard') return pathname === '/dashboard'
+    return pathname.startsWith(href)
+  }
+
+  return (
+    <div className="topbar">
+      <div className="tb">
+        {/* Main nav bar */}
+        <div className="nbar">
+          {/* Logo */}
+          <Link to="/dashboard" className="logo">
+            <span className="mk">
+              <svg viewBox="0 0 28 22" fill="none" stroke="url(#nxr-lg)" strokeWidth="3.2" strokeLinecap="round">
+                <defs>
+                  <linearGradient id="nxr-lg" x1="0" y1="0" x2="1" y2="1">
+                    <stop stopColor="#7c9cff"/><stop offset="1" stopColor="#b48cff"/>
+                  </linearGradient>
+                </defs>
+                <path d="M10 2 4 20M18 2l-6 18M26 2l-6 18"/>
+              </svg>
+            </span>
+            NXTvue
+          </Link>
+
+          {/* Centre links */}
+          <div className="links">
+            {NAV.map((n) => (
+              <Link key={n.href} to={n.href} className={isActive(n.href) ? 'cur' : ''}>{n.label}</Link>
+            ))}
+          </div>
+
+          {/* Right actions */}
+          <div className="nact">
+            <NotificationBell triggerClassName="ib" />
+            {symbol && (
+              <a className="btn p" href="#verdict">See Verdict</a>
+            )}
+            <button className="btn lo" onClick={() => navigate('/login')}>Logout</button>
+            <button className="ib" id="nxr-burger" aria-label="Menu" onClick={() => setMobileOpen((v) => !v)}>
+              {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile sheet */}
+        <div className={`sheet${mobileOpen ? ' open' : ''}`} onClick={() => setMobileOpen(false)}>
+          {NAV.map((n) => <Link key={n.href} to={n.href}>{n.label}</Link>)}
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login') }}>Logout</a>
+        </div>
+
+        {/* Section jump-bar */}
+        {symbol && (
+          <div id="nxr-secbar" className={`secbar${secShow ? ' show' : ''}`}>
+            <span className="tag">{symbol} Report</span>
+            <a href="#top" data-s="top" className={secActive === 'top' ? 'on' : ''}>
+              <i>00</i>Overview
+            </a>
+            {items.map((it) => (
+              <a key={it.slug} href={`#${it.slug}`} data-s={it.slug} className={secActive === it.slug ? 'on' : ''}>
+                <i>{it.num}</i>{it.label}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Mascot chips ───────────────────────────────────────────────────────────── */
+function MascotChip({ label, value, color, cls }: { label: string; value: string; color: 'good' | 'bad' | 'ink'; cls: 'a' | 'b' | 'c' }) {
+  return (
+    <div className={`chip ${cls}`}>
+      <small>{label}</small>
+      <b style={color === 'ink' ? undefined : { color: `var(--${color})` }}>{value}</b>
+    </div>
+  )
+}
+
+/* ─── Mascot 3D Card (with interactive 3D tilt & translation + eye tracking) ── */
+function MascotCard({ name, chips }: { name: string; chips: { label: string; value: string; color: 'good' | 'bad' | 'ink' }[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const tiltRef = useRef<HTMLDivElement>(null)
+  const mouse = useRef<{ x: number | null; y: number | null }>({ x: null, y: null })
+  const cur = useRef({ rx: 0, ry: 0, tx: 0, ty: 0 })
+
+  useEffect(() => {
+    const cont = containerRef.current
+    if (!cont) return
+
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = cont.getBoundingClientRect()
+      // Normalized coordinates from -0.5 to +0.5 relative to the card container
+      const px = (e.clientX - rect.left) / rect.width - 0.5
+      const py = (e.clientY - rect.top) / rect.height - 0.5
+      mouse.current = { x: px, y: py }
+    }
+
+    const onPointerLeave = () => {
+      mouse.current = { x: null, y: null }
+    }
+
+    cont.addEventListener('pointermove', onPointerMove, { passive: true })
+    cont.addEventListener('pointerleave', onPointerLeave)
+
+    let rafId = 0
+    const tick = () => {
+      const { x: px, y: py } = mouse.current
+      const targetRx = py !== null ? -py * 24 : 0
+      const targetRy = px !== null ? px * 24 : 0
+      const targetTx = px !== null ? px * 36 : 0
+      const targetTy = py !== null ? py * 36 : 0
+
+      const c = cur.current
+      c.rx += (targetRx - c.rx) * 0.12
+      c.ry += (targetRy - c.ry) * 0.12
+      c.tx += (targetTx - c.tx) * 0.12
+      c.ty += (targetTy - c.ty) * 0.12
+
+      if (tiltRef.current) {
+        tiltRef.current.style.transform = `perspective(900px) rotateY(${c.ry.toFixed(2)}deg) rotateX(${c.rx.toFixed(2)}deg) translate3d(${c.tx.toFixed(2)}px, ${c.ty.toFixed(2)}px, 0px)`
+      }
+      rafId = requestAnimationFrame(tick)
+    }
+    tick()
+
+    return () => {
+      cont.removeEventListener('pointermove', onPointerMove)
+      cont.removeEventListener('pointerleave', onPointerLeave)
+      cancelAnimationFrame(rafId)
+    }
+  }, [])
+
+  return (
+    <div
+      className="mascot rev"
+      ref={(el) => {
+        containerRef.current = el
+        revealOnce(el)
+      }}
+    >
+      <div className="halo" />
+      <div className="frame" id="tilt" ref={tiltRef}>
+        <div className="pic">
+          <img src="/analysis/mascot.jpg" alt={`${name} mascot illustration`} />
+          <MascotEyes />
+        </div>
+        {chips[0] && <MascotChip cls="a" label={chips[0].label} value={chips[0].value} color={chips[0].color} />}
+        {chips[1] && <MascotChip cls="b" label={chips[1].label} value={chips[1].value} color={chips[1].color} />}
+        {chips[2] && <MascotChip cls="c" label={chips[2].label} value={chips[2].value} color={chips[2].color} />}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Main Page ──────────────────────────────────────────────────────────────── */
 export function AnalysisPage() {
   const { ticker: tickerParam } = useParams<{ ticker?: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Dynamic parameters from route or query — zero hardcoded ticker lists
-  const rawTicker = (searchParams.get('ticker') || tickerParam || 'VRT').trim()
+  const rawTicker     = (searchParams.get('ticker') || tickerParam || 'VRT').trim()
   const currentTicker = (rawTicker.includes(':') ? rawTicker.split(':')[0] : rawTicker).toUpperCase()
   const currentMarket = (searchParams.get('market') || (rawTicker.includes(':') ? rawTicker.split(':')[1] : 'india')).toLowerCase()
   const shouldGenerateOnLoad = searchParams.get('generate') === 'true'
 
-  // Dynamic Report State
-  const [report, setReport] = useState<DynamicReport | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    localStorage.getItem('nxtvue_analysis_theme') === 'light' ? 'light' : 'dark',
+  )
+  const isLight = theme === 'light'
+  const toggleTheme = () => {
+    const next = isLight ? 'dark' : 'light'
+    setTheme(next)
+    localStorage.setItem('nxtvue_analysis_theme', next)
+  }
+
+  const [report, setReport]       = useState<DynamicReport | null>(null)
+  const [loading, setLoading]     = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
-  // SSE Report Generator Hook
   const { status, message, progress, error: sseError, run: runGenerator, reset: resetGenerator } = useAnalysis()
 
-  // Chat State
-  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen]     = useState(false)
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model'; text: string }[]>([])
-  const [chatInput, setChatInput] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
+  const [chatInput, setChatInput]       = useState('')
+  const [isTyping, setIsTyping]         = useState(false)
   const chatScrollRef = useRef<HTMLDivElement>(null)
-  const leftColRef = useRef<HTMLDivElement>(null)
-
-  // Background Video State
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const isSeeking = useRef(false)
-  const targetTime = useRef(0)
-
-  // Fetch or Generate Report Effect
-  useEffect(() => {
-    let isCancelled = false
-
-    async function loadStockReport() {
-      if (shouldGenerateOnLoad) {
-        // Trigger live institutional generation
-        setLoading(false)
-        runGenerator(currentTicker, currentMarket, 2027)
-        return
-      }
-
-      setLoading(true)
-      setFetchError(null)
-
-      try {
-        const res = await fetch(`/api/v1/analysis/${encodeURIComponent(currentTicker)}`)
-        if (isCancelled) return
-
-        if (res.ok) {
-          const data: DynamicReport = await res.json()
-          setReport(data)
-          setLoading(false)
-          // Initialize A.R.I.A chat greeting
-          setChatMessages([
-            {
-              role: 'model',
-              text: `Hello. I am A.R.I.A. I have analyzed the dynamic 2027 institutional report for ${data.name} (${data.symbol}). How can I assist you with this research today?`,
-            },
-          ])
-        } else if (res.status === 404) {
-          // Report has not been generated yet
-          setReport(null)
-          setLoading(false)
-        } else {
-          const errData = await res.json().catch(() => ({}))
-          setFetchError(errData.detail || `Failed to retrieve report for ${currentTicker}`)
-          setLoading(false)
-        }
-      } catch (err: any) {
-        if (!isCancelled) {
-          setFetchError(err.message || 'Network error while retrieving report')
-          setLoading(false)
-        }
-      }
-    }
-
-    loadStockReport()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [currentTicker, currentMarket, shouldGenerateOnLoad])
-
-  // Handle SSE completion: when live generation finishes, fetch the parsed report
-  useEffect(() => {
-    if (status === 'complete') {
-      // Remove generate=true from URL query
-      const newParams = new URLSearchParams(searchParams)
-      newParams.delete('generate')
-      setSearchParams(newParams, { replace: true })
-
-      // Fetch the newly generated PDF data from server
-      fetch(`/api/v1/analysis/${encodeURIComponent(currentTicker)}`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data: DynamicReport | null) => {
-          if (data) {
-            setReport(data)
-            setChatMessages([
-              {
-                role: 'model',
-                text: `Institutional analysis for ${data.name} (${data.symbol}) is now ready. I am standing by for any queries regarding valuation, business moat, or technical entry triggers.`,
-              },
-            ])
-          }
-        })
-        .catch(console.error)
-    }
-  }, [status, currentTicker])
-
-  const handleStartGeneration = () => {
-    setFetchError(null)
-    resetGenerator()
-    runGenerator(currentTicker, currentMarket, 2027)
-  }
-
-  // Mouse tracking mapped to video timeline
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!videoRef.current || isNaN(videoRef.current.duration)) return
-      if (isChatOpen) return
-
-      const xPercentage = e.clientX / window.innerWidth
-      targetTime.current = Math.max(0, Math.min(videoRef.current.duration, xPercentage * videoRef.current.duration))
-
-      if (!isSeeking.current) {
-        isSeeking.current = true
-        videoRef.current.currentTime = targetTime.current
-      }
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [isChatOpen])
-
-  // Scrub when chat opens
-  useEffect(() => {
-    if (!videoRef.current || isNaN(videoRef.current.duration)) return
-
-    if (isChatOpen) {
-      targetTime.current = videoRef.current.duration * 0.85
-      if (!isSeeking.current) {
-        isSeeking.current = true
-        videoRef.current.currentTime = targetTime.current
-      }
-    }
-  }, [isChatOpen])
-
-  const handleSeeked = () => {
-    if (!videoRef.current) return
-    if (Math.abs(videoRef.current.currentTime - targetTime.current) > 0.05) {
-      videoRef.current.currentTime = targetTime.current
-    } else {
-      isSeeking.current = false
-    }
-  }
-
-  // A.R.I.A Copilot Chat
-  const handleSendMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!chatInput.trim() || isTyping) return
-
-    const userMsg = chatInput.trim()
-    setChatInput('')
-    const newHistory = [...chatMessages, { role: 'user' as const, text: userMsg }]
-    setChatMessages(newHistory)
-    setIsTyping(true)
-
-    try {
-      const response = await fetch('/api/v1/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: newHistory.map((m) => ({
-            role: m.role === 'model' ? 'assistant' : 'user',
-            content: m.text,
-          })),
-          context: {
-            symbol: report?.symbol || currentTicker,
-            name: report?.name || currentTicker,
-            judgement: report?.judgementTag,
-            judgement_text: report?.judgementText,
-            summary: report?.summaryNote,
-          },
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.reply) {
-          setChatMessages((prev) => [...prev, { role: 'model', text: data.reply }])
-          setIsTyping(false)
-          return
-        }
-      }
-    } catch (err) {
-      console.warn('Backend copilot error, falling back to dynamic analyst response:', err)
-    }
-
-    // Dynamic contextual fallback
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const fallbackText = report
-      ? `Regarding ${report.name} (${report.symbol}): Classification is "${report.judgementTag}". ${report.judgementText}`
-      : `Analyzing ${currentTicker}: Generating real-time investment evaluation.`
-    setChatMessages((prev) => [...prev, { role: 'model', text: fallbackText }])
-    setIsTyping(false)
-  }
-
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
-    }
-  }, [chatMessages, isTyping])
-
-  // Helper to parse content into tables, bullet lists, or paragraphs
-  const renderSectionContent = (content: string) => {
-    if (!content) return null
-
-    const rawBlocks = content.split(/\n\s*\n/)
-
-    return rawBlocks.map((block, bIdx) => {
-      const trimmed = block.trim()
-      if (!trimmed) return null
-
-      const lines = trimmed.split('\n').map((l) => l.trim()).filter(Boolean)
-
-      // Markdown Table Parser
-      const isTable = lines.length >= 2 && lines.every((l) => l.startsWith('|') && l.endsWith('|'))
-      if (isTable) {
-        const headers = lines[0].slice(1, -1).split('|').map((c) => c.trim())
-        const dataLines = lines.slice(1).filter((l) => !l.replace(/[|\s\-:]/g, '') == false)
-        const rows = dataLines.map((l) => l.slice(1, -1).split('|').map((c) => c.trim()))
-        if (headers.length > 0 && rows.length > 0) {
-          return (
-            <div key={bIdx} className="my-6 overflow-x-auto">
-              <ReportTable headers={headers} rows={rows} />
-            </div>
-          )
-        }
-      }
-
-      // Bullet List Parser
-      const isList = lines.some((l) => /^[•\-\*]\s+|^\d+\.\s+/.test(l))
-      if (isList) {
-        return (
-          <ul key={bIdx} className="space-y-3 pl-2 my-4 text-slate-700 font-light">
-            {lines.map((line, lIdx) => {
-              const cleanLine = line.replace(/^[•\-\*]\s+|^\d+\.\s+/, '')
-              const colonIdx = cleanLine.indexOf(':')
-              if (colonIdx > 0 && colonIdx < 50) {
-                const prefix = cleanLine.slice(0, colonIdx)
-                const rest = cleanLine.slice(colonIdx + 1)
-                return (
-                  <li key={lIdx} className="flex items-start gap-2.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
-                    <div>
-                      <strong className="text-slate-900 font-medium mr-1.5">{prefix}:</strong>
-                      <span className="text-slate-600">{rest}</span>
-                    </div>
-                  </li>
-                )
-              }
-              return (
-                <li key={lIdx} className="flex items-start gap-2.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
-                  <span className="text-slate-700">{cleanLine}</span>
-                </li>
-              )
-            })}
-          </ul>
-        )
-      }
-
-      // Investor Stance Card Parser (Section 13)
-      if (/Existing (?:Holders|Long-Term)|Fresh Investors|Aggressive|Conservative/i.test(trimmed)) {
-        return (
-          <div key={bIdx} className="my-3 p-4 rounded-xl bg-slate-50 border border-slate-200 border-slate-300 transition-all">
-            <p className="text-slate-800 text-sm leading-relaxed">{trimmed}</p>
-          </div>
-        )
-      }
-
-      // Standard formatted paragraph
-      return (
-        <p key={bIdx} className="text-slate-700 font-light leading-relaxed mb-4 text-[15px] sm:text-[16px]">
-          {trimmed}
-        </p>
-      )
-    })
-  }
 
   const isGenerating = status === 'fetching' || status === 'analyzing'
 
+  // ── Load / generate ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (shouldGenerateOnLoad) { setLoading(false); runGenerator(currentTicker, currentMarket, 2027); return }
+      setLoading(true); setFetchError(null)
+      try {
+        const res = await fetch(`/api/v1/analysis/${encodeURIComponent(currentTicker)}`)
+        if (cancelled) return
+        if (res.ok) {
+          const data: DynamicReport = await res.json()
+          setReport(data); setLoading(false)
+          setChatMessages([{ role: 'model', text: `Hello. I'm A.R.I.A. I've analysed the 2027 institutional report for ${data.name} (${data.symbol}). How can I help?` }])
+        } else if (res.status === 404) {
+          setReport(null); setLoading(false)
+        } else {
+          const err = await res.json().catch(() => ({}))
+          setFetchError(err.detail || `Failed to retrieve report for ${currentTicker}`); setLoading(false)
+        }
+      } catch (err: unknown) {
+        if (!cancelled) { setFetchError(err instanceof Error ? err.message : 'Network error'); setLoading(false) }
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [currentTicker, currentMarket, shouldGenerateOnLoad, runGenerator])
+
+  // ── SSE complete ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (status !== 'complete') return
+    const p = new URLSearchParams(searchParams); p.delete('generate')
+    setSearchParams(p, { replace: true })
+    fetch(`/api/v1/analysis/${encodeURIComponent(currentTicker)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: DynamicReport | null) => {
+        if (data) {
+          setReport(data)
+          setChatMessages([{ role: 'model', text: `Analysis for ${data.name} (${data.symbol}) is ready. How can I help?` }])
+        }
+      }).catch(console.error)
+  }, [status, currentTicker, searchParams, setSearchParams])
+
+  const handleStartGeneration = useCallback(() => {
+    setFetchError(null); resetGenerator(); runGenerator(currentTicker, currentMarket, 2027)
+  }, [currentTicker, currentMarket, resetGenerator, runGenerator])
+
+  // ── Chat ──────────────────────────────────────────────────────────────────────
+  const handleSend = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!chatInput.trim() || isTyping) return
+    const userMsg = chatInput.trim(); setChatInput('')
+    const hist = [...chatMessages, { role: 'user' as const, text: userMsg }]
+    setChatMessages(hist); setIsTyping(true)
+    try {
+      const res = await fetch('/api/v1/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: hist.map((m) => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.text })),
+          context: { symbol: report?.symbol || currentTicker, name: report?.name || currentTicker, judgement: report?.judgementTag, judgement_text: report?.judgementText, summary: report?.summaryNote },
+        }),
+      })
+      if (res.ok) { const d = await res.json(); if (d.reply) { setChatMessages((p) => [...p, { role: 'model', text: d.reply }]); setIsTyping(false); return } }
+    } catch (err) { console.warn('chat error', err) }
+    await new Promise((r) => setTimeout(r, 500))
+    setChatMessages((p) => [...p, { role: 'model', text: report ? `${report.name} (${report.symbol}): "${report.judgementTag}". ${report.judgementText}` : `Analysing ${currentTicker}…` }])
+    setIsTyping(false)
+  }
+  useEffect(() => { if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight }, [chatMessages, isTyping])
+
+  // ── Derived view data (all read from the report text) ───────────────────────
+  const heroKpis = report ? deriveHeroKpis(report.sections, `${report.judgementText} ${report.executiveSummary.map((e) => e.text).join(' ')}`) : []
+  const chips = report ? deriveChips(report.sections) : []
+  const jumpItems = report ? buildJumpItems(report.sections) : []
+  const currentPrice = (() => {
+    const val = report?.sections.find((x) => sectionKind(x.title) === 'valuation')
+    return val ? parseValuation(val.content).price : undefined
+  })()
+  const targetZone = (() => {
+    const v = report?.sections.find((x) => sectionKind(x.title) === 'verdict')
+    return v ? parseVerdict(v.content).targetZone : undefined
+  })()
+
+  /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
-    <div className="relative bg-slate-50 text-slate-900 w-full font-body selection:bg-blue-100 selection:text-slate-900 min-h-screen">
-      {/* Background Interactive AI Video */}
-      <video
-        ref={videoRef}
-        src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_041744_63efcd78-bf7d-4039-99e2-2461e8a61903.mp4"
-        className="fixed inset-0 z-0 object-cover w-full h-full pointer-events-none"
-        style={{
-          objectPosition: '85% center',
-          transformOrigin: '80% 50%',
-          transform: isChatOpen ? 'scale(0.95) translate(-2%, 6%)' : 'scale(0.85) translate(0%, 0%)',
-          transition: 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)',
-        }}
-        muted
-        playsInline
-        preload="auto"
-        onSeeked={handleSeeked}
-      />
+    <div className="nxr" id="nxr-root" data-theme={theme}>
+      <AuroraCanvas />
+      <div className="grain" />
+      <div className="prog" id="nxr-prog" />
 
-      {/* Two-Column Layout */}
-      <div className="relative z-10 flex flex-col md:flex-row w-full min-h-screen">
-        {/* Left Column — Content Container */}
-        <div
-          ref={leftColRef}
-          className="order-2 md:order-1 w-full md:w-[60%] lg:w-[55%] pointer-events-auto bg-white/90 md:bg-white/80 backdrop-blur-2xl border-t md:border-t-0 md:border-r border-slate-200 pt-6 pb-10 px-6 sm:px-10 md:px-14 shadow-xl min-h-screen"
-        >
-          <div className="max-w-4xl mx-auto">
-            {/* Top Navigation & Action Row */}
-            <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-              <Link
-                to="/portfolio?tab=watchlist"
-                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back to Watchlist
-              </Link>
+      {/* ── Topbar ─────────────────────────────────────────────────── */}
+      <ReportTopbar symbol={report?.symbol} items={jumpItems} />
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {report && (
-                  <>
-                    <a
-                      href={report.pdfUrl || `/api/v1/reports/${report.symbol}.pdf`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold border border-emerald-200 transition-all cursor-pointer shadow-sm active:scale-95"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      View Official PDF
-                    </a>
-
-                    <button
-                      onClick={handleStartGeneration}
-                      disabled={isGenerating}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold border border-slate-300 transition-all cursor-pointer shadow-sm active:scale-95"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin text-blue-600' : ''}`} />
-                      Regenerate
-                    </button>
-                  </>
-                )}
-
-                <Link
-                  to="/analysis/history"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all shadow-sm"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  All Reports
-                </Link>
-              </div>
-            </div>
-
-            {/* LIVE GENERATION PROGRESS BANNER */}
-            {isGenerating && (
-              <div className="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-blue-50 via-white to-indigo-50 border border-blue-200 shadow-lg backdrop-blur-xl mb-10 relative overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-
-                <div className="flex items-center gap-4 mb-4 relative z-10">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-100 border border-blue-200 flex items-center justify-center">
-                    <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" aria-hidden="true" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-heading font-bold text-xl text-slate-900">Generating AI Institutional Report</h3>
-                      <span className="text-[10px] uppercase font-mono tracking-widest text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200">
-                        {currentTicker} • {currentMarket.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Synthesizing multi-year financial statements, moat durability, and technical signals
-                    </p>
-                  </div>
-                </div>
-
-                {/* Progress bar */}
-                <div className="space-y-2 relative z-10 mt-6">
-                  <div className="flex justify-between text-xs font-mono">
-                    <span className="text-blue-600">{message || 'Processing financial metrics…'}</span>
-                    <span className="text-slate-700 font-bold">{progress}%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-500 rounded-full"
-                      style={{ width: `${Math.max(progress, 8)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ERROR DISPLAY */}
-            {!isGenerating && (fetchError || sseError) && (
-              <div className="p-6 rounded-2xl bg-red-50 border border-red-200 mb-8 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-red-600 text-sm">Analysis Request Encountered an Issue</h4>
-                  <p className="text-xs text-red-700 mt-1">{fetchError || sseError?.userMessage}</p>
-                  <button
-                    onClick={handleStartGeneration}
-                    className="mt-3 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium border border-red-200 transition-all cursor-pointer"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* REPORT NOT FOUND / NOT GENERATED YET STATE */}
-            {!loading && !report && !isGenerating && (
-              <div className="p-8 md:p-12 rounded-3xl bg-white border border-slate-200 text-center relative overflow-hidden my-12">
-                <h2 className="text-2xl md:text-3xl font-heading font-bold text-slate-900 mb-2">
-                  No Report Found for {currentTicker}
-                </h2>
-                <p className="text-slate-600 text-sm max-w-md mx-auto mb-8 leading-relaxed">
-                  The institutional deep-dive memorandum for {currentTicker} has not yet been generated. Click below to
-                  generate the full 13-section analysis with Bob AI and market data.
-                </p>
-                <button
-                  onClick={handleStartGeneration}
-                  className="inline-flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md active:scale-95 transition-all cursor-pointer"
-                >
-                  Generate AI Report for {currentTicker}
-                </button>
-              </div>
-            )}
-
-            {/* INITIAL SKELETON LOADING STATE */}
-            {loading && !report && (
-              <div className="space-y-6 my-12 animate-pulse">
-                <div className="h-8 w-48 bg-slate-100 rounded-lg" />
-                <div className="h-16 w-3/4 bg-slate-100 rounded-xl" />
-                <div className="h-32 w-full bg-slate-50 rounded-2xl" />
-                <div className="h-48 w-full bg-slate-50 rounded-2xl" />
-              </div>
-            )}
-
-            {/* DYNAMIC REPORT DISPLAY */}
+      {/* ── Main ───────────────────────────────────────────────────── */}
+      <main className="mainw" id="top">
+        {/* ── Hero ───────────────────────────────────────────────── */}
+        <header className="hero">
+          {/* Breadcrumb */}
+          <div className="crumb">
+            <Link to="/portfolio?tab=watchlist" className="pill">← Back to watchlist</Link>
             {report && (
-              <div className="animate-in fade-in duration-500">
-                {/* Title & Header */}
-                <div className="mb-8">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-100 border border-slate-300 backdrop-blur-sm mb-4">
-                    <FileText className="w-3.5 h-3.5 text-slate-700" />
-                    <span className="text-xs font-mono tracking-wider text-slate-800 uppercase">
-                      {report.analysisDoc}
-                    </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
-                  </div>
+              <>
+                <span className="pill"><i />{report.analysisDoc}</span>
+                <a className="pill" href={report.pdfUrl || `/api/v1/reports/${report.symbol}.pdf`} target="_blank" rel="noreferrer">View official PDF</a>
+                <button className="pill btnlike" disabled={isGenerating} onClick={handleStartGeneration}>Regenerate</button>
+              </>
+            )}
+            <button
+              className="tbtn"
+              onClick={toggleTheme}
+              title={`Switch to ${isLight ? 'Dark' : 'Light'} mode`}
+              aria-label="Toggle Theme"
+            >
+              {isLight ? <Moon width={16} height={16} /> : <Sun width={16} height={16} />}
+              <span>{isLight ? 'Dark' : 'Light'}</span>
+            </button>
+          </div>
 
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl font-heading font-bold text-slate-900 tracking-tight leading-tight">
-                    {report.name} ({report.symbol}): <br className="hidden sm:block" />
-                    <span className="text-blue-600 font-normal">{report.subtitle}</span>
-                  </h1>
+          {/* Title */}
+          <h1>
+            {report ? `${report.name} (${report.symbol})` : currentTicker}
+            {report && <em>{report.subtitle}</em>}
+          </h1>
+
+          {/* Mascot */}
+          {report && (
+            <MascotCard name={report.name} chips={chips} />
+          )}
+
+          {/* Judgement */}
+          {report && (
+            <GlassCard reveal className="judge">
+              <span className="lab">◆ My judgement</span>
+              <p>{report.judgementText}</p>
+            </GlassCard>
+          )}
+
+          {/* Hero KPIs */}
+          {heroKpis.length > 0 && (
+            <div className="kpis">
+              {heroKpis.map((kpi) => (
+                <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} cls={kpi.cls} />
+              ))}
+            </div>
+          )}
+
+          {/* Executive summary */}
+          {report && report.executiveSummary.length > 0 && (
+            <div className="grid3 rev" style={{ marginTop: 34 }} ref={revealOnce}>
+              {report.executiveSummary.map((item, i) => (
+                <GlassCard key={i} className="card">
+                  <h3>{item.label}</h3>
+                  <p>{item.text}</p>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+
+          {report?.summaryNote && <Note>{report.summaryNote}</Note>}
+
+          <div className="scroll">SCROLL ↓</div>
+        </header>
+
+        {/* ── Generation banner ──────────────────────────────────── */}
+        {isGenerating && (
+          <Rev>
+            <GlassCard className="state">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                <div className="kpi" style={{ width: 48, height: 48, padding: 0, display: 'grid', placeItems: 'center', borderRadius: 14, flexShrink: 0 }}>
+                  <RefreshCw className="w-5 h-5 spin" style={{ color: 'var(--acc)' }} />
                 </div>
-
-                {/* My Judgement Card */}
-                <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200 mb-10 shadow-lg relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-                  <div className="flex items-center gap-2 mb-3">
-                    <ShieldAlert className="w-4 h-4 text-blue-600" />
-                    <h3 className="text-xs uppercase tracking-widest text-slate-600 font-heading font-semibold">
-                      My Judgement
-                    </h3>
-                  </div>
-                  <p className="text-lg md:text-xl text-slate-900 leading-relaxed font-light">
-                    {report.judgementText}
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-mono">Classification:</span>
-                    <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full shadow-sm">
-                      {report.judgementTag}
-                    </span>
-                  </div>
+                <div>
+                  <h3 style={{ marginBottom: 4 }}>Generating AI Institutional Report</h3>
+                  <span className="lab">{currentTicker} · {currentMarket.toUpperCase()}</span>
                 </div>
+              </div>
+              <div className="gen-row">
+                <span>{message || 'Processing financial metrics…'}</span>
+                <b>{progress}%</b>
+              </div>
+              <div className="gen-bar">
+                <i style={{ width: `${Math.max(progress, 8)}%` }} />
+              </div>
+            </GlassCard>
+          </Rev>
+        )}
 
-                {/* Executive Summary */}
-                {report.executiveSummary && report.executiveSummary.length > 0 && (
-                  <div className="space-y-4 mb-12">
-                    <h3 className="text-sm uppercase tracking-wider text-slate-500 font-heading font-semibold">
-                      Executive Summary
-                    </h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      {report.executiveSummary.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 transition-all"
-                        >
-                          <strong className="text-slate-900 font-medium font-heading block mb-1 text-sm text-blue-600">
-                            {item.label}
-                          </strong>
-                          <p className="text-slate-700 font-light text-sm leading-relaxed">{item.text}</p>
-                        </div>
-                      ))}
-                    </div>
+        {/* ── Error ──────────────────────────────────────────────── */}
+        {!isGenerating && (fetchError || sseError) && (
+          <Rev>
+            <GlassCard className="state err">
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <AlertCircle className="w-5 h-5" style={{ color: 'var(--bad)', flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <h3>Analysis request encountered an issue</h3>
+                  <p>{fetchError || sseError?.userMessage}</p>
+                  <button className="btn" style={{ marginTop: 14 }} onClick={handleStartGeneration}>Try Again</button>
+                </div>
+              </div>
+            </GlassCard>
+          </Rev>
+        )}
 
-                    {report.summaryNote && (
-                      <p className="text-xs text-slate-600 italic pt-2 pl-1 border-l-2 border-blue-400/40">
-                        {report.summaryNote}
-                      </p>
+        {/* ── Not found ──────────────────────────────────────────── */}
+        {!loading && !report && !isGenerating && (
+          <Rev>
+            <GlassCard className="state" style={{ textAlign: 'center' }}>
+              <h3>No report found for {currentTicker}</h3>
+              <p>The institutional deep-dive for {currentTicker} hasn't been generated yet. Click below to generate the full 13-section analysis.</p>
+              <button className="btn p" style={{ marginTop: 20 }} onClick={handleStartGeneration}>
+                Generate AI Report for {currentTicker}
+              </button>
+            </GlassCard>
+          </Rev>
+        )}
+
+        {/* ── Skeleton ───────────────────────────────────────────── */}
+        {loading && !report && (
+          <div className="skel">
+            <i style={{ height: 48, width: 180 }} />
+            <i style={{ height: 100 }} />
+            <i style={{ height: 180 }} />
+          </div>
+        )}
+
+        {/* ── Report sections ────────────────────────────────────── */}
+        {report && (() => {
+          const secs = report.sections.map((sec, idx) => ({ sec, idx, kind: sectionKind(sec.title) }))
+          const bullish = secs.find((x) => x.kind === 'bullish')
+          const bearish = secs.find((x) => x.kind === 'bearish')
+          const header = (num: string, title: string) => (
+            <Rev><div className="sh"><small>{num}</small><h2>{title}</h2></div></Rev>
+          )
+          const numOf = (sec: AnalysisSection, idx: number) => (sec.title.match(/^\s*(\d+)\./)?.[1] ?? String(idx + 1)).padStart(2, '0')
+          const titleOf = (sec: AnalysisSection) => sec.title.replace(/^\d+\.\s*/, '')
+          const jump = (kind: SectionKind, idx: number) => (kind === 'other' ? `sec-${idx}` : kind)
+
+          return secs.map(({ sec, idx, kind }) => {
+            if (kind === 'bullish' || kind === 'bearish') return null
+            return (
+              <section key={idx} id={jump(kind, idx)}>
+                {header(numOf(sec, idx), titleOf(sec))}
+                <SectionBody kind={kind} content={sec.content} price={currentPrice} targetZone={targetZone} />
+                {kind === 'risks' && (bullish || bearish) && (
+                  <div className="two" style={{ marginTop: 14 }}>
+                    {bullish && (
+                      <GlassCard reveal className="card">
+                        <div className="sh" style={{ margin: '0 0 14px' }}><small>{numOf(bullish.sec, bullish.idx)}</small><h3 style={{ margin: 0 }}>{titleOf(bullish.sec)}</h3></div>
+                        <Bullets content={bullish.sec.content} bad={false} bare />
+                      </GlassCard>
+                    )}
+                    {bearish && (
+                      <GlassCard reveal className="card">
+                        <div className="sh" style={{ margin: '0 0 14px' }}><small>{numOf(bearish.sec, bearish.idx)}</small><h3 style={{ margin: 0 }}>{titleOf(bearish.sec)}</h3></div>
+                        <Bullets content={bearish.sec.content} bad bare />
+                      </GlassCard>
                     )}
                   </div>
                 )}
+              </section>
+            )
+          })
+        })()}
 
-                {/* Quick Section Jump Bar */}
-                {report.sections && report.sections.length > 0 && (
-                  <div className="mb-10 pb-4 border-b border-slate-200">
-                    <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-2 font-mono">Jump to Section:</p>
-                    <div className="flex gap-2 overflow-x-auto pb-2 custom-report-scrollbar">
-                      {report.sections.map((sec, idx) => (
-                        <a
-                          key={idx}
-                          href={`#sec-${idx}`}
-                          className="text-xs px-3 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 whitespace-nowrap transition-colors"
-                        >
-                          {sec.title.split('.')[0]}. {sec.title.split('.')[1]?.slice(0, 16) || sec.title.slice(0, 16)}…
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
+        {/* ── Disclaimer ─────────────────────────────────────────── */}
+        {report && (
+          <Rev>
+            <p className="disc" id="disc">
+              <strong>Disclaimer:</strong> This analysis is for educational and institutional research purposes based on
+              historical and market data. It does not constitute investment advice. Investors must conduct their own
+              independent due diligence. Generated dynamically by NXTvue Institutional Engine for {report.symbol}.
+            </p>
+          </Rev>
+        )}
+      </main>
 
-                {/* Canonical Numbered Sections */}
-                <div className="space-y-12">
-                  {report.sections &&
-                    report.sections.map((sec, idx) => (
-                      <section
-                        key={idx}
-                        id={`sec-${idx}`}
-                        className="scroll-mt-24 p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xl hover:border-slate-200 transition-all"
-                      >
-                        <h2 className="text-xl sm:text-2xl font-heading font-bold text-slate-900 border-b border-slate-200 pb-3 mb-6 flex items-center justify-between">
-                          <span>{sec.title}</span>
-                          <span className="text-xs font-mono text-slate-400 font-normal">#{idx + 1}</span>
-                        </h2>
-
-                        <div className="text-slate-700 font-light leading-relaxed">
-                          {renderSectionContent(sec.content)}
-                        </div>
-                      </section>
-                    ))}
-                </div>
-
-                {/* Disclaimer */}
-                <p className="text-slate-500 text-xs text-center border-t border-slate-200 pt-8 mt-16 pb-8 uppercase tracking-widest font-heading">
-                  Disclaimer: This analysis is for educational and institutional research purposes based on historical and
-                  market data. It does not constitute investment advice. Generated dynamically by NXTvue Institutional
-                  Engine for {report.symbol}.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column Spacer for Video Viewport */}
-        <div className="hidden md:block order-1 md:order-2 md:w-[40%] lg:w-[45%] pointer-events-none shrink-0 md:sticky md:top-0 md:h-[calc(100vh-60px)]" />
-
-        {/* A.R.I.A Floating Chat Window */}
-        <div className="fixed bottom-6 right-6 md:bottom-8 md:right-10 pointer-events-auto z-[400] flex flex-col items-end">
-          {/* Chat Modal */}
-          <div
-            className={`w-[calc(100vw-3rem)] sm:w-[380px] h-[480px] bg-white border border-slate-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
-              isChatOpen
-                ? 'opacity-100 scale-100 translate-y-0 mb-4'
-                : 'opacity-0 scale-95 translate-y-4 pointer-events-none absolute bottom-full mb-4'
-            }`}
-          >
-            {/* Chat Header */}
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-3">
-                <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 border border-blue-200">
-                  <span className="text-[15px] select-none text-blue-600 absolute">✳︎</span>
-                  {isTyping && (
-                    <div className="absolute inset-0 rounded-full border border-blue-400 animate-ping opacity-30" />
-                  )}
-                </div>
+      {/* ── Footer ─────────────────────────────────────────────────── */}
+      {report && (
+        <footer className="foot">
+          <div className="w">
+            {/* CTA banner */}
+            <Rev>
+              <div className="glass fcta">
+                <h3>Turn the dislocation into a plan.</h3>
                 <div>
-                  <h4 className="font-heading font-bold text-sm text-slate-900">A.R.I.A</h4>
-                  <p className="text-[10px] text-blue-600/80 uppercase tracking-widest font-mono">
-                    {report ? `${report.symbol} Analyst` : 'Financial Analyst'}
-                  </p>
+                  <Link to="/analysis/history" className="btn p">All Reports</Link>
+                  <a className="btn" href={report.pdfUrl || `/api/v1/reports/${report.symbol}.pdf`} target="_blank" rel="noreferrer">View Official PDF</a>
                 </div>
               </div>
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="text-slate-500 hover:text-slate-900 transition-colors p-1 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+            </Rev>
 
-            {/* Chat Messages */}
-            <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 custom-report-scrollbar flex flex-col">
-              {chatMessages.map((msg, idx) => (
-                <div key={idx} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-blue-600 text-white rounded-br-sm'
-                        : 'bg-slate-100 text-slate-800 border border-slate-200 rounded-bl-sm'
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-              {isTyping && (
-                <div className="flex w-full justify-start">
-                  <div className="bg-slate-100 border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1.5 items-center">
-                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Chat Input */}
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-slate-50">
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={`Ask A.R.I.A about ${report?.symbol || currentTicker}…`}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-full pl-4 pr-12 py-2.5 text-[13px] text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-400/50 focus:bg-slate-100 transition-all"
-                  disabled={isTyping}
-                />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim() || isTyping}
-                  className="absolute right-1.5 w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 transition-transform cursor-pointer"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+            {/* Footer grid */}
+            <div className="fgrid">
+              <div>
+                <Link to="/dashboard" className="logo" style={{ marginBottom: 14 }}>
+                  <svg viewBox="0 0 28 22" fill="none" stroke="url(#nxr-lg2)" strokeWidth="3" strokeLinecap="round" width="26" height="22">
+                    <defs><linearGradient id="nxr-lg2" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#7c9cff"/><stop offset="1" stopColor="#b48cff"/></linearGradient></defs>
+                    <path d="M10 2 4 20M18 2l-6 18M26 2l-6 18"/>
+                  </svg>
+                  NXTvue
+                </Link>
+                <p>Institutional-grade equity research, generated from historical and market data and built for patient capital.</p>
               </div>
-            </form>
+              <div>
+                <h5>Product</h5>
+                {[['Dashboard','/dashboard'],['Charts','/chart'],['Analyze','/analysis'],['My Portfolio','/portfolio']].map(([l,h])=>(
+                  <Link key={l} to={h}>{l}</Link>
+                ))}
+              </div>
+              <div>
+                <h5>Company</h5>
+                {[['About','/about'],['See Plans','/pricing'],['Contact','#']].map(([l,h])=>(
+                  <Link key={l} to={h}>{l}</Link>
+                ))}
+              </div>
+              <div>
+                <h5>Legal</h5>
+                {[['Privacy','#'],['Terms','#'],['Disclaimer','#disc']].map(([l,h])=>(
+                  <a key={l} href={h}>{l}</a>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer bottom */}
+            <div className="fbot">
+              <span>© 2026 NXTvue. All rights reserved.</span>
+              <span className="st"><i/>Engine online</span>
+              <a href="#top" className="btn">Back to top ↑</a>
+            </div>
+
+            {/* Watermark */}
+            <div className="wm" aria-hidden="true">NXTvue</div>
           </div>
+        </footer>
+      )}
 
-          {/* Chat FAB */}
-          <button
-            onClick={() => setIsChatOpen(true)}
-            className={`w-14 h-14 rounded-full flex items-center justify-center bg-white border border-blue-200 text-slate-900 shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 cursor-pointer ${
-              isChatOpen ? 'scale-0 opacity-0 pointer-events-none absolute' : 'scale-100 opacity-100'
-            }`}
-          >
-            <span className="text-[26px] select-none mt-0.5 text-blue-600">✳︎</span>
-          </button>
+      {/* ── A.R.I.A Chat ─────────────────────────────────────────────── */}
+      {/* FAB */}
+      <button className={`chatfab${isChatOpen ? ' hide' : ''}`} onClick={() => setIsChatOpen(true)} aria-label="Open A.R.I.A chat">
+        ✳︎
+      </button>
+
+      {/* Chat window */}
+      <div className={`chatwin${isChatOpen ? '' : ' closed'}`} role="dialog" aria-label="A.R.I.A Financial Analyst">
+        <div className="chathd">
+          <div className="who">
+            <div className="av">
+              <span>✳︎</span>
+              {isTyping && <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '1px solid var(--acc)', animation: 'nxr-pulse 1.5s infinite', opacity: .4 }} />}
+            </div>
+            <div>
+              <h4>A.R.I.A</h4>
+              <small>{report ? `${report.symbol} Analyst` : 'Financial Analyst'}</small>
+            </div>
+          </div>
+          <button onClick={() => setIsChatOpen(false)} aria-label="Close">✕</button>
         </div>
+
+        <div className="chatmsgs" ref={chatScrollRef}>
+          {chatMessages.map((msg, idx) => (
+            <div key={idx} className={`msg${msg.role === 'user' ? ' user' : ''}`}>{msg.text}</div>
+          ))}
+          {isTyping && (
+            <div className="typing">
+              <i/><i/><i/>
+            </div>
+          )}
+        </div>
+
+        <form className="chatform" onSubmit={handleSend}>
+          <input
+            type="text"
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            placeholder={`Ask A.R.I.A about ${report?.symbol || currentTicker}…`}
+            disabled={isTyping}
+          />
+          <button type="submit" disabled={!chatInput.trim() || isTyping} aria-label="Send">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </form>
       </div>
     </div>
   )

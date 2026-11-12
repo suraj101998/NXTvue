@@ -1,7 +1,11 @@
 """INDmoney API routes — proxies live data from the INDmoney MCP server."""
 
 import logging
-from fastapi import APIRouter, HTTPException, status
+from urllib.parse import urlencode
+
+from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import Any, Dict
 
@@ -12,7 +16,13 @@ from ..tools.indmoney_client import (
     get_holdings,
     invalidate_holdings_cache,
 )
-from ..tools.indmoney_token import token_manager
+from ..tools.indmoney_oauth import (
+    OAuthFlowError,
+    begin_authorization,
+    complete_authorization,
+    frontend_url,
+)
+from ..tools.indmoney_token import REAUTH_CODE, IndmoneyAuthError, token_manager
 from .indmoney_models import (
     NetWorthSnapshot,
     AllHoldingsResponse,
@@ -35,9 +45,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/indmoney", tags=["indmoney"])
 
 
+def _reauth_http(exc: IndmoneyAuthError) -> HTTPException:
+    """424 + a machine-readable body: the app session is fine, the INDmoney link needs a new sign-in."""
+    return HTTPException(
+        status_code=status.HTTP_424_FAILED_DEPENDENCY,
+        detail={
+            "code": REAUTH_CODE,
+            "reason": exc.reason,
+            "message": "Your INDmoney connection has expired. Reconnect to see live portfolio data.",
+        },
+    )
+
+
 def _handle(fn, label: str):
     try:
         return fn()
+    except IndmoneyAuthError as exc:
+        logger.error("%s needs INDmoney sign-in: %s", label, exc.reason)
+        raise _reauth_http(exc)
     except RuntimeError as exc:
         msg = str(exc)
         if "INDMONEY_TOKEN" in msg:
@@ -229,6 +254,8 @@ async def indmoney_token_refresh():
     try:
         token_manager.force_refresh()
         return {"success": True, **token_manager.status()}
+    except IndmoneyAuthError as exc:
+        raise _reauth_http(exc)
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
 
@@ -247,3 +274,37 @@ async def indmoney_token_update(req: TokenUpdateRequest):
         client_secret=req.client_secret or None,
     )
     return {"success": True, **token_manager.status()}
+
+
+@router.post("/connect")
+async def indmoney_connect():
+    """Start the INDmoney sign-in: returns the consent URL the browser should open."""
+    try:
+        url = await run_in_threadpool(begin_authorization)
+    except OAuthFlowError as exc:
+        logger.error("INDmoney connect failed: %s", exc.reason)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "indmoney_connect_failed", "reason": exc.reason, "message": exc.message},
+        )
+    return {"authorize_url": url}
+
+
+@router.get("/callback", include_in_schema=False)
+async def indmoney_callback(
+    code: str = Query(""),
+    state: str = Query(""),
+    error: str = Query(""),
+):
+    """OAuth redirect target. Stores the tokens, then sends the browser back to the portfolio page."""
+    back = f"{frontend_url()}/portfolio"
+    if error or not code or not state:
+        reason = error or "missing_code"
+        return RedirectResponse(f"{back}?{urlencode({'indmoney': 'error', 'reason': reason})}")
+    try:
+        await run_in_threadpool(complete_authorization, code, state)
+    except OAuthFlowError as exc:
+        logger.error("INDmoney callback failed: %s", exc.reason)
+        return RedirectResponse(f"{back}?{urlencode({'indmoney': 'error', 'reason': exc.reason})}")
+    invalidate_holdings_cache()
+    return RedirectResponse(f"{back}?indmoney=connected")

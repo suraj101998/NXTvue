@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Link2Off, CloudOff, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '@/hooks/usePortfolioHoldings'
+import { startIndMoneyConnect } from '@/api/client'
+import { ApiError } from '@/api/errors'
 import { SkeletonTable } from '@/components/feedback/LoadingSkeleton'
 import { useIndMoneyPortfolio } from '@/hooks/useIndMoneyPortfolio'
 import { useIndMoneyWatchlist } from '@/hooks/useIndMoneyWatchlist'
@@ -116,6 +118,52 @@ function formatDueDate(dateStr?: string | null): string {
   }
 }
 
+interface ConnectionStateProps {
+  /** `reauth` = INDmoney session expired; `error` = any other load failure. */
+  variant: 'reauth' | 'error'
+  message?: string
+  busy: boolean
+  hint: string | null
+  onPrimary: () => void
+  onSecondary: () => void
+}
+
+function ConnectionState({ variant, message, busy, hint, onPrimary, onSecondary }: ConnectionStateProps) {
+  const reauth = variant === 'reauth'
+  const Icon = reauth ? Link2Off : CloudOff
+  return (
+    <div className="c rc" role="alert" aria-live="polite">
+      <div className="rc-ic"><Icon width={26} height={26} strokeWidth={1.6} aria-hidden="true" /></div>
+      <div className="k">{reauth ? 'INDmoney · Connection' : 'Live data · Unavailable'}</div>
+      <h2 className="rc-title">
+        {reauth ? <>Your INDmoney link <em>has expired</em></> : <>We couldn’t <em>load this</em></>}
+      </h2>
+      <p className="rc-sub">
+        {reauth
+          ? 'For your security, INDmoney sessions expire. Reconnect to bring your live portfolio, holdings and watchlist back.'
+          : message || 'Something went wrong while fetching live data. Please try again in a moment.'}
+      </p>
+      <div className="rc-actions">
+        <button className="btn rc-primary" onClick={onPrimary} disabled={busy}>
+          <RefreshCw
+            width={16}
+            height={16}
+            aria-hidden="true"
+            style={{ animation: busy ? 'p-rot 1s linear infinite' : undefined }}
+          />
+          <span>{busy ? 'Checking…' : reauth ? 'Reconnect' : 'Try again'}</span>
+        </button>
+        {reauth && (
+          <button className="btn rc-ghost" onClick={onSecondary} disabled={busy}>
+            Check again
+          </button>
+        )}
+      </div>
+      {hint && <p className="rc-hint">{hint}</p>}
+    </div>
+  )
+}
+
 export function PortfolioPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -145,6 +193,52 @@ export function PortfolioPage() {
   const handleRefresh = () => {
     refreshAll()
     refreshWatchlist()
+  }
+
+  const [reconnecting, setReconnecting] = useState(false)
+  const [reconnectHint, setReconnectHint] = useState<string | null>(null)
+
+  // Send the browser to INDmoney's consent page. INDmoney redirects back here with ?indmoney=connected|error.
+  const handleReconnect = async () => {
+    setReconnecting(true)
+    setReconnectHint(null)
+    try {
+      window.location.assign(await startIndMoneyConnect())
+    } catch (err) {
+      setReconnectHint(
+        err instanceof ApiError && err.serverMessage
+          ? err.serverMessage
+          : 'Could not start the INDmoney sign-in. Check your connection and try again.',
+      )
+      setReconnecting(false)
+    }
+  }
+
+  // Returning from INDmoney: drop the marker from the URL, reload data on success, explain on failure.
+  const indmoneyResult = searchParams.get('indmoney')
+  useEffect(() => {
+    if (!indmoneyResult) return
+    const reason = searchParams.get('reason')
+    const next = new URLSearchParams(searchParams)
+    next.delete('indmoney')
+    next.delete('reason')
+    setSearchParams(next, { replace: true })
+    if (indmoneyResult === 'connected') {
+      refreshAll()
+      refreshWatchlist()
+    } else {
+      setReconnectHint(
+        reason === 'access_denied'
+          ? 'Sign-in was cancelled. Press Reconnect whenever you are ready.'
+          : 'INDmoney sign-in did not complete. Please press Reconnect to try again.',
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indmoneyResult])
+
+  const handleCheckAgain = () => {
+    setReconnectHint(null)
+    handleRefresh()
   }
 
   // ── Derived summary numbers ──────────────────────────────────────────────
@@ -195,6 +289,50 @@ export function PortfolioPage() {
 
   // ── Market cap split ─────────────────────────────────────────────────
   const marketCapRows = (snapshot?.market_cap ?? []).filter((m) => m.current_value > 0)
+
+  // ── Marquee items (all derived from the live snapshot / holdings) ────────
+  // Strip legal suffixes and cut at a word boundary so labels never end mid-word.
+  const shortName = (raw: string) => {
+    const words = raw.replace(/\b(ltd|limited)\b\.?/gi, '').replace(/\s+/g, ' ').trim().toUpperCase().split(' ')
+    let out = ''
+    for (const w of words) {
+      if ((out + ' ' + w).trim().length > 18) break
+      out = (out + ' ' + w).trim()
+    }
+    return out || words[0].slice(0, 18)
+  }
+  const signedPct = (n: number) => `${n >= 0 ? '▲ +' : '▼ −'}${Math.abs(n).toFixed(2)}%`
+  const signedAmt = (n: number) => `${n >= 0 ? '▲ +' : '▼ −'}${formatCompact(Math.abs(n))}`
+
+  const overviewTicker: { label: string; text: string; up: boolean }[] = snapshot
+    ? [
+        ...allocationRows.map((a) => ({ label: a.name.replace(/_/g, ' ').toUpperCase(), text: signedPct(a.pnlPct), up: a.pnlPct >= 0 })),
+        { label: 'TODAY', text: signedAmt(todayChange), up: todayChange >= 0 },
+        { label: 'OVERALL P&L', text: signedPct(totalPnlPct), up: totalPnl >= 0 },
+      ]
+    : []
+
+  const holdingsTicker: { label: string; text: string; up: boolean }[] = [
+    ...(holdings?.ind_stocks.holdings ?? []),
+    ...(holdings?.mutual_funds.holdings ?? []),
+  ]
+    .filter((h) => h.one_day_change !== 0)
+    .sort((a, b) => Math.abs(b.one_day_change) - Math.abs(a.one_day_change))
+    .slice(0, 14)
+    .map((h) => ({ label: shortName(h.investment), text: signedAmt(h.one_day_change), up: h.one_day_change >= 0 }))
+
+  const renderTicker = (items: { label: string; text: string; up: boolean }[]) => {
+    const row = (suffix: string) =>
+      items.map((t, i) => (
+        <span key={`${suffix}${i}`}><i>{t.label}</i><b className={t.up ? 'g' : 'r'}>{t.text}</b></span>
+      ))
+    return (
+      <>
+        {row('a')}
+        <span aria-hidden="true" style={{ display: 'contents' }}>{row('b')}</span>
+      </>
+    )
+  }
 
   // ── Holdings tables ──────────────────────────────────────────────────
   const stockRows = (holdings?.ind_stocks.holdings ?? []).map((h) => ({
@@ -562,6 +700,62 @@ export function PortfolioPage() {
         }
         .tl:hover { transform: translateY(-5px); border-color: #5b78d6; }
 
+        /* ── Connection / error state ────────────────────────────────── */
+        .rc {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 14px;
+          padding: 64px 28px 56px;
+          background: radial-gradient(420px 220px at 50% 0, #e8c0681f, #0000 70%),
+                      linear-gradient(180deg, #131a29, #0c111c);
+        }
+        .rc-ic {
+          display: grid;
+          place-items: center;
+          width: 64px;
+          height: 64px;
+          border-radius: 20px;
+          color: #e8c068;
+          background: #e8c0681a;
+          border: 1px solid #e8c06840;
+          box-shadow: 0 0 0 8px #e8c0680d;
+        }
+        h2.rc-title {
+          margin: 4px 0 0;
+          font: 400 40px/1.05 'Instrument Serif', Georgia, serif;
+          color: #e8ecf5;
+        }
+        h2.rc-title em { color: #e8c068; }
+        .rc-sub { margin: 0; max-width: 460px; color: #a3aec4; font-size: 14px; line-height: 1.6; }
+        .rc-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+        .btn.rc-primary { background: #e8c068; border-color: #e8c068; color: #1a1405; font-weight: 600; }
+        .btn.rc-primary:hover { box-shadow: 0 8px 24px -8px #e8c068aa; }
+        .btn.rc-primary:disabled, .btn.rc-ghost:disabled { opacity: .6; cursor: default; transform: none; }
+        .rc-hint {
+          margin: 6px 0 0;
+          max-width: 480px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid #2a344b;
+          background: #0f1420;
+          color: #a3aec4;
+          font-size: 12.5px;
+          line-height: 1.5;
+        }
+        .p-light .rc { background: radial-gradient(420px 220px at 50% 0, #e8c06833, #0000 70%), #fff; }
+        .p-light .rc-ic { color: #b45309; background: #f3cf7a40; border-color: #d9a43a66; box-shadow: 0 0 0 8px #f3cf7a1f; }
+        .p-light h2.rc-title { color: #0f1424; }
+        .p-light h2.rc-title em { color: #b45309; }
+        .p-light .rc-sub { color: #4a5570; }
+        .p-light .btn.rc-primary { background: #0f1424; border-color: #0f1424; color: #fff; }
+        .p-light .rc-hint { background: #f8f9fc; border-color: #e4e8f0; color: #4a5570; }
+        @media (max-width: 768px) {
+          h2.rc-title { font-size: 32px; }
+          .rc { padding: 44px 20px 40px; }
+        }
+
         /* ── Holdings sub-tabs ───────────────────────────────────────── */
         .sub { display: flex; gap: 8px; flex-wrap: wrap; }
         .sub button {
@@ -780,6 +974,7 @@ export function PortfolioPage() {
         .tl:nth-child(3n), .w:nth-child(4n+3) { animation-delay: .24s; }
         .w:nth-child(4n) { animation-delay: .36s; }
         @keyframes up { from { opacity: 0; transform: translateY(22px); } }
+        @keyframes p-rot { to { transform: rotate(360deg); } }
 
         @media (prefers-reduced-motion: reduce) {
           *, *:before, *:after { animation: none !important; transition: none !important; }
@@ -827,58 +1022,11 @@ export function PortfolioPage() {
       </nav>
 
       {/* ── Marquee ─────────────────────────────────────────────────────── */}
+      {!(activeTab === 'watchlist' ? watchlistError : holdingsError) && (
       <div className="mq" aria-label="Market ticker">
         <div>
-          {activeTab === 'overview' && (
-            <>
-              <span><i>MF</i><b className="g">▲ +6.12%</b></span>
-              <span><i>GOLD</i><b className="g">▲ +5.50%</b></span>
-              <span><i>SILVER</i><b className="g">▲ +154.23%</b></span>
-              <span><i>FD</i><b className="g">▲ +8.01%</b></span>
-              <span><i>PRIVATE EQUITY</i><b className="g">▲ +3.53%</b></span>
-              <span><i>BOND</i><b className="g">▲ +0.17%</b></span>
-              <span><i>STOCK</i><b className={totalPnl >= 0 ? 'g' : 'r'}>{totalPnl >= 0 ? '▲' : '▼'} {totalPnlPct.toFixed(2)}%</b></span>
-              <span><i>TODAY</i><b className={todayChange >= 0 ? 'g' : 'r'}>{todayChange >= 0 ? '▲ +' : '▼ −'}{formatCompact(Math.abs(todayChange))}</b></span>
-              <span><i>OVERALL P&amp;L</i><b className={totalPnl >= 0 ? 'g' : 'r'}>{totalPnl >= 0 ? '▲ +' : '▼ '}{totalPnlPct.toFixed(2)}%</b></span>
-              <span aria-hidden="true" style={{ display: 'contents' }}>
-                <span><i>MF</i><b className="g">▲ +6.12%</b></span>
-                <span><i>GOLD</i><b className="g">▲ +5.50%</b></span>
-                <span><i>SILVER</i><b className="g">▲ +154.23%</b></span>
-                <span><i>FD</i><b className="g">▲ +8.01%</b></span>
-                <span><i>PRIVATE EQUITY</i><b className="g">▲ +3.53%</b></span>
-                <span><i>BOND</i><b className="g">▲ +0.17%</b></span>
-                <span><i>STOCK</i><b className={totalPnl >= 0 ? 'g' : 'r'}>{totalPnl >= 0 ? '▲' : '▼'} {totalPnlPct.toFixed(2)}%</b></span>
-                <span><i>TODAY</i><b className={todayChange >= 0 ? 'g' : 'r'}>{todayChange >= 0 ? '▲ +' : '▼ −'}{formatCompact(Math.abs(todayChange))}</b></span>
-                <span><i>OVERALL P&amp;L</i><b className={totalPnl >= 0 ? 'g' : 'r'}>{totalPnl >= 0 ? '▲ +' : '▼ '}{totalPnlPct.toFixed(2)}%</b></span>
-              </span>
-            </>
-          )}
-          {activeTab === 'holdings' && (
-            <>
-              <span><i>MCX</i><b className="g">▲ +₹655.2</b></span>
-              <span><i>MTAR</i><b className="g">▲ +₹728</b></span>
-              <span><i>BSE</i><b className="g">▲ +₹85</b></span>
-              <span><i>LUPIN</i><b className="g">▲ +₹86</b></span>
-              <span><i>SBI</i><b className="g">▲ +₹151</b></span>
-              <span><i>HIND. COPPER</i><b className="g">▲ +₹72.45</b></span>
-              <span><i>FORTIS</i><b className="r">▼ −₹46</b></span>
-              <span><i>SILVER ETF</i><b className="r">▼ −₹37.8</b></span>
-              <span><i>HINDALCO</i><b className="r">▼ −₹14.9</b></span>
-              <span><i>NASDAQ 100 ETF</i><b className="r">▼ −₹13.32</b></span>
-              <span aria-hidden="true" style={{ display: 'contents' }}>
-                <span><i>MCX</i><b className="g">▲ +₹655.2</b></span>
-                <span><i>MTAR</i><b className="g">▲ +₹728</b></span>
-                <span><i>BSE</i><b className="g">▲ +₹85</b></span>
-                <span><i>LUPIN</i><b className="g">▲ +₹86</b></span>
-                <span><i>SBI</i><b className="g">▲ +₹151</b></span>
-                <span><i>HIND. COPPER</i><b className="g">▲ +₹72.45</b></span>
-                <span><i>FORTIS</i><b className="r">▼ −₹46</b></span>
-                <span><i>SILVER ETF</i><b className="r">▼ −₹37.8</b></span>
-                <span><i>HINDALCO</i><b className="r">▼ −₹14.9</b></span>
-                <span><i>NASDAQ 100 ETF</i><b className="r">▼ −₹13.32</b></span>
-              </span>
-            </>
-          )}
+          {activeTab === 'overview' && renderTicker(overviewTicker)}
+          {activeTab === 'holdings' && renderTicker(holdingsTicker)}
           {activeTab === 'watchlist' && (
             <>
               {watchlists.flatMap((wl) => wl.stocks).slice(0, 14).map((s, i) => (
@@ -893,20 +1041,24 @@ export function PortfolioPage() {
           )}
         </div>
       </div>
+      )}
 
-      {/* ── Error Banner ─────────────────────────────────────────────────── */}
-      {holdingsError && (
-        <div className="c" style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}>
-          <p className="r" style={{ fontWeight: 600, margin: 0 }}>Failed to load live portfolio data</p>
-          <p style={{ fontSize: '13px', margin: '4px 0 12px' }}>{holdingsError.userMessage}</p>
-          <button onClick={handleRefresh} className="btn">Retry Now</button>
-        </div>
+      {/* ── Connection / error state (replaces the tab body, no ₹0 placeholders) ── */}
+      {holdingsError && activeTab !== 'watchlist' && (
+        <ConnectionState
+          variant={holdingsError.needsReconnect ? 'reauth' : 'error'}
+          message={holdingsError.userMessage}
+          busy={reconnecting || holdingsLoading}
+          hint={reconnectHint}
+          onPrimary={holdingsError.needsReconnect ? handleReconnect : handleRefresh}
+          onSecondary={handleCheckAgain}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* OVERVIEW TAB                                                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'overview' && (
+      {!holdingsError && activeTab === 'overview' && (
         <>
           {/* Row 1: Hero net worth + KPI 2x2 */}
           <div className="p-row">
@@ -1080,7 +1232,7 @@ export function PortfolioPage() {
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* HOLDINGS TAB                                                      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {activeTab === 'holdings' && (
+      {!holdingsError && activeTab === 'holdings' && (
         <>
           {/* Holdings sub-tabs */}
           <div className="sub">
@@ -1253,11 +1405,14 @@ export function PortfolioPage() {
       {activeTab === 'watchlist' && (
         <>
           {watchlistError && (
-            <div className="c" style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}>
-              <p className="r" style={{ fontWeight: 600, margin: 0 }}>Failed to load Watchlist data</p>
-              <p style={{ fontSize: '13px', margin: '4px 0 12px' }}>{watchlistError.userMessage}</p>
-              <button onClick={refreshWatchlist} className="btn">Retry Now</button>
-            </div>
+            <ConnectionState
+              variant={watchlistError.needsReconnect ? 'reauth' : 'error'}
+              message={watchlistError.userMessage}
+              busy={reconnecting || watchlistLoading}
+              hint={reconnectHint}
+              onPrimary={watchlistError.needsReconnect ? handleReconnect : refreshWatchlist}
+              onSecondary={handleCheckAgain}
+            />
           )}
           {watchlistLoading && (
             <div className="c"><SkeletonTable rows={4} columns={4} /></div>

@@ -1,0 +1,211 @@
+/** SVG string renderer for the charts terminal: a typed port of the reference template's `chart()`. */
+import { axisLabel, levels, type Pack } from './chartMath'
+
+export type LayerKey = 'ob' | 'fvg' | 'sr' | 's20' | 's50' | 's200' | 'vol' | 'rsi' | 'macd'
+export type Layers = Record<LayerKey, boolean>
+
+export const LAYER_DEFS: { key: LayerKey; label: string; color: string; group: 0 | 1 | 2 }[] = [
+  { key: 'ob', label: 'Order blocks', color: '#ffb454', group: 0 },
+  { key: 'fvg', label: 'FVG', color: '#38bdf8', group: 0 },
+  { key: 'sr', label: 'S/R', color: '#7d8796', group: 0 },
+  { key: 's20', label: 'SMA 20', color: '#5b8cff', group: 1 },
+  { key: 's50', label: 'SMA 50', color: '#ffa94d', group: 1 },
+  { key: 's200', label: 'SMA 200', color: '#c084fc', group: 1 },
+  { key: 'vol', label: 'Volume', color: '#26d98a', group: 2 },
+  { key: 'rsi', label: 'RSI', color: '#2de2c4', group: 2 },
+  { key: 'macd', label: 'MACD', color: '#ff7ab6', group: 2 },
+]
+
+export interface ChartInput {
+  A: Pack
+  N: number
+  layers: Layers
+  width: number
+  height: number
+  hi: number | null
+  lo: number | null
+  fmt: (p: number) => string
+}
+
+export interface ChartGeometry {
+  svg: string
+  viewBox: string
+  /** index of the first visible bar */
+  s: number
+  /** pixel width of one bar */
+  w: number
+  /** plot width, excluding the price axis */
+  pw: number
+  height: number
+}
+
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+export function renderChart(inp: ChartInput): ChartGeometry {
+  const { A, N, layers: LY, fmt: F } = inp
+  const a = A.a
+  const n = A.n
+  const s = n - N
+  const v = a.slice(s)
+  const VW = Math.max(340, inp.width || 960)
+  const VH = Math.max(520, inp.height || 680)
+  const tg = VW >= 700
+  const G = tg ? 150 : 84
+  const W = VW - G
+  const w = W / N
+  const cw = Math.max(1.5, w * 0.62)
+  let mn = Math.min(...v.map((e) => e.l))
+  let mx = Math.max(...v.map((e) => e.h))
+  const pd = (mx - mn) * 0.06 || mx * 0.01
+  mn -= pd
+  mx += pd
+  const HH = 22
+  const PV = 58
+  const PR = 66
+  const PM = 66
+  const fx = (LY.vol ? HH + PV + 12 : 0) + (LY.rsi ? HH + PR + 12 : 0) + (LY.macd ? HH + PM + 12 : 0)
+  const PH = Math.max(200, VH - 8 - 16 - fx - 32)
+  const Y = (p: number) => 8 + ((mx - p) / (mx - mn)) * PH
+  const X = (i: number) => (i - s) * w + w / 2
+  const nd = mx - mn < 20
+  let o = ''
+  let y = 8 + PH + 16
+  let vy = 0
+  let ry = 0
+  let my = 0
+  if (LY.vol) {
+    vy = y + HH
+    y = vy + PV + 12
+  }
+  if (LY.rsi) {
+    ry = y + HH
+    y = ry + PR + 12
+  }
+  if (LY.macd) {
+    my = y + HH
+    y = my + PM + 12
+  }
+  const AY = y - 6
+  const H = Math.max(VH, AY + 28)
+
+  for (let i = 0; i <= 5; i++) {
+    const p = mn + ((mx - mn) * i) / 5
+    o += `<line x1="0" x2="${W}" y1="${Y(p)}" y2="${Y(p)}" stroke="var(--line)" opacity=".7"/><text x="${W + 6}" y="${Y(p) + 3}">${nd ? F(p) : F(p).replace(/\.\d+$/, '')}</text>`
+  }
+  o += `<line x1="0" x2="${W}" y1="${AY}" y2="${AY}" stroke="var(--line)"/>`
+  v.forEach((_, i) => {
+    const t = axisLabel(A, s + i, N)
+    if (t)
+      o += `<line x1="${X(s + i)}" x2="${X(s + i)}" y1="${AY}" y2="${AY + 5}" stroke="var(--mute)" opacity=".6"/><text x="${X(s + i) + 4}" y="${AY + 17}">${esc(t)}</text>`
+  })
+
+  const lc = a[n - 1].c
+  const tgs: { y: number; t: string; c: string; sr?: boolean }[] = []
+  const near = (z: { top: number; bot: number }) => Math.abs((z.top + z.bot) / 2 - lc)
+  const zone = (z: { i: number; top: number; bot: number }, c: string, txt: string, dash: string, cls: string, ttl: string) => {
+    const x0 = Math.max(0, X(Math.max(z.i, s)) - w / 2)
+    const yt = Y(Math.min(z.top, mx))
+    const yb = Y(Math.max(z.bot, mn))
+    o += `<g class="fi ${cls}"><title>${esc(ttl)}</title><rect x="${x0}" y="${yt}" width="${W - x0}" height="${Math.max(3, yb - yt)}" fill="${c}" opacity=".11" stroke="${c}" stroke-dasharray="${dash}" stroke-opacity=".5"/></g>`
+    tgs.push({ y: (yt + yb) / 2, t: txt, c })
+  }
+  if (LY.ob)
+    A.ob
+      .filter((z) => !z.mit && z.bot < mx && z.top > mn)
+      .sort((p, q) => near(p) - near(q))
+      .slice(0, 4)
+      .forEach((z) =>
+        zone(
+          z,
+          z.t === 'b' ? 'var(--good)' : 'var(--bad)',
+          `${z.t === 'b' ? 'Bull' : 'Bear'} OB ${z.str}`,
+          '4 3',
+          'ob',
+          `${z.t === 'b' ? 'Bull' : 'Bear'} order block · strength ${z.str} · ${z.te ? `tested ×${z.te}` : 'fresh'} · ${F(z.bot)} – ${F(z.top)}`,
+        ),
+      )
+  if (LY.fvg)
+    A.fv
+      .filter((z) => z.bot < mx && z.top > mn)
+      .sort((p, q) => near(p) - near(q))
+      .slice(0, 3)
+      .forEach((z) =>
+        zone(z, z.t === 'b' ? '#38bdf8' : '#f472b6', `${z.t === 'b' ? 'Bull' : 'Bear'} FVG`, '1 3', 'fvg', `${z.t === 'b' ? 'Bull' : 'Bear'} fair value gap · ${F(z.bot)} – ${F(z.top)}`),
+      )
+  if (LY.sr)
+    levels(A, inp.hi, inp.lo)
+      .filter((q) => q.p > mn && q.p < mx)
+      .slice(0, 4)
+      .forEach((q) => {
+        const yy = Y(q.p)
+        o += `<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="${q.p > lc ? 'var(--bad)' : 'var(--good)'}" stroke-dasharray="2 5" opacity=".4"/>`
+        tgs.push({ y: yy, t: `${q.n} ${F(q.p)}`, c: 'var(--mute)', sr: true })
+      })
+
+  v.forEach((e, i) => {
+    const c = e.c >= e.o ? 'var(--good)' : 'var(--bad)'
+    const x = X(s + i)
+    o += `<line x1="${x}" x2="${x}" y1="${Y(e.h)}" y2="${Y(e.l)}" stroke="${c}"/><rect x="${x - cw / 2}" y="${Y(Math.max(e.o, e.c))}" width="${cw}" height="${Math.max(1, Math.abs(Y(e.o) - Y(e.c)))}" fill="${c}"/>`
+  })
+
+  const ln = (arr: (number | null)[], col: string, wd: number, yf: (q: number) => number) => {
+    let q = ''
+    for (let i = s; i < n; i++) {
+      const val = arr[i]
+      if (val != null) q += `${q ? 'L' : 'M'}${X(i).toFixed(1)} ${yf(val).toFixed(1)}`
+    }
+    return q ? `<path class="dr" pathLength="1" d="${q}" fill="none" stroke="${col}" stroke-width="${wd}"/>` : ''
+  }
+  // The moving averages share the price scale, so one outside the visible range must be cut off at the
+  // edge of the price pane instead of running down into the volume pane.
+  o += `<clipPath id="pclip"><rect x="0" y="0" width="${W}" height="${8 + PH}"/></clipPath><g clip-path="url(#pclip)">`
+  ;([
+    ['s20', '#5b8cff'],
+    ['s50', '#ffa94d'],
+    ['s200', '#c084fc'],
+  ] as const).forEach(([k, col]) => {
+    if (LY[k]) o += ln(A[k], col, k === 's200' ? 2 : 1.5, Y)
+  })
+  o += '</g>'
+
+  if (tg) {
+    const used = [Y(lc)]
+    tgs.forEach((t) => {
+      if (used.some((u) => Math.abs(u - t.y) < 16)) return
+      used.push(t.y)
+      const wd = t.t.length * 5.7 + 12
+      o += `<rect x="${W + 76}" y="${t.y - 8}" width="${wd}" height="16" rx="4" fill="${t.c}" opacity="${t.sr ? 0.12 : 0.2}"/><text x="${W + 82}" y="${t.y + 3.5}" style="fill:${t.sr ? 'var(--mute)' : t.c};font-size:9.5px;font-weight:600">${esc(t.t)}</text>`
+    })
+  }
+  o += `<line x1="0" x2="${W}" y1="${Y(lc)}" y2="${Y(lc)}" stroke="var(--acc)" stroke-dasharray="3 3"/><rect x="${W + 2}" y="${Y(lc) - 9}" width="70" height="18" rx="4" fill="var(--acc)"/><text x="${W + 8}" y="${Y(lc) + 3.5}" style="fill:#04110e;font-weight:600">${F(lc)}</text>`
+
+  const HT = 'style="fill:var(--ink);font-weight:500"'
+  const HV = 'dx="8" style="fill:var(--mute);font-weight:400"'
+  if (LY.vol) {
+    const vm = Math.max(...v.map((e) => e.v)) || 1
+    o += `<text x="2" y="${vy - 8}" ${HT}>Volume<tspan id="hvv" ${HV}></tspan></text><rect x="${W - 112}" y="${vy - 17}" width="8" height="8" rx="2" fill="var(--acc2)"/><text x="${W - 100}" y="${vy - 9}">Spike &gt;1.8× avg</text>`
+    v.forEach((e, i) => {
+      const h = (e.v / vm) * PV
+      const sp = e.v > 1.8 * (A.vma[s + i] || 1e18)
+      o += `<rect x="${X(s + i) - cw / 2}" y="${vy + PV - h}" width="${cw}" height="${h}" fill="${sp ? 'var(--acc2)' : e.c >= e.o ? 'var(--good)' : 'var(--bad)'}" opacity="${sp ? 1 : 0.4}"/>`
+    })
+    o += ln(A.vma, 'var(--ink)', 1.2, (q) => vy + PV - (q / vm) * PV)
+  }
+  if (LY.rsi) {
+    const Z = (r: number) => ry + PR * (1 - r / 100)
+    o += `<text x="2" y="${ry - 8}" ${HT}>RSI 14<tspan id="hrv" ${HV}></tspan></text><rect x="0" y="${ry}" width="${W}" height="${PR}" fill="var(--pn2)" rx="6"/><rect x="0" y="${Z(70)}" width="${W}" height="${Z(30) - Z(70)}" fill="var(--acc)" opacity=".06"/><line x1="0" x2="${W}" y1="${Z(70)}" y2="${Z(70)}" stroke="var(--bad)" stroke-dasharray="3 4" opacity=".6"/><line x1="0" x2="${W}" y1="${Z(30)}" y2="${Z(30)}" stroke="var(--good)" stroke-dasharray="3 4" opacity=".6"/><text x="${W + 6}" y="${Z(70) + 3}">70</text><text x="${W + 6}" y="${Z(30) + 3}">30</text>${ln(A.rsi, '#2de2c4', 1.6, Z)}`
+  }
+  if (LY.macd) {
+    const hm = Math.max(...A.hist.slice(s).map(Math.abs), ...A.macd.slice(s).map(Math.abs)) || 1
+    const M = (q: number) => my + PM / 2 - (q / hm) * (PM / 2 - 3)
+    o += `<text x="2" y="${my - 8}" ${HT}>MACD 12 26 9<tspan id="hmv" ${HV}></tspan></text><rect x="${W - 150}" y="${my - 14}" width="10" height="3" rx="1.5" fill="#5b8cff"/><text x="${W - 136}" y="${my - 9}">MACD</text><rect x="${W - 80}" y="${my - 14}" width="10" height="3" rx="1.5" fill="#ffa94d"/><text x="${W - 66}" y="${my - 9}">Signal</text><rect x="0" y="${my}" width="${W}" height="${PM}" fill="var(--pn2)" rx="6"/><line x1="0" x2="${W}" y1="${my + PM / 2}" y2="${my + PM / 2}" stroke="var(--line)"/>`
+    v.forEach((_, i) => {
+      const q = A.hist[s + i]
+      const yy = M(q)
+      o += `<rect x="${X(s + i) - cw / 2}" y="${Math.min(yy, my + PM / 2)}" width="${cw}" height="${Math.abs(yy - my - PM / 2)}" fill="var(--${q >= 0 ? 'good' : 'bad'})" opacity=".55"/>`
+    })
+    o += ln(A.macd, '#5b8cff', 1.3, M) + ln(A.sig, '#ffa94d', 1.3, M)
+  }
+  o += `<g id="xh" style="display:none;pointer-events:none"><line id="xl" y1="8" y2="${AY}" stroke="var(--ink)" stroke-dasharray="3 3" opacity=".6"/></g>`
+  return { svg: o, viewBox: `0 0 ${VW} ${H}`, s, w, pw: W, height: H }
+}

@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import httpx
 
-from .indmoney_token import token_manager
+from .indmoney_token import IndmoneyAuthError, token_manager
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +178,9 @@ def get_all_holdings() -> Dict[str, Any]:
             time.sleep(0.5)  # 500 ms gap — well under rate limit threshold
         try:
             results[key] = get_holdings(at)
+        except IndmoneyAuthError:
+            # The login itself is dead: every asset type would fail the same way, so say so once.
+            raise
         except Exception as exc:
             logger.warning("Failed to fetch %s holdings: %s", at, exc)
             # Extract a clean error label (e.g. "rate_limit_exceeded")

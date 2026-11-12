@@ -22,12 +22,13 @@ router = APIRouter(prefix="/market", tags=["market"])
 _INTERVALS: Dict[str, Tuple[Tuple[str, ...], str]] = {
     "5m": (("1d", "5d", "1mo"), "5d"),
     "15m": (("1d", "5d", "1mo"), "1mo"),
+    "30m": (("5d", "1mo"), "1mo"),
     "60m": (("5d", "1mo", "3mo", "6mo", "1y"), "3mo"),
     "1d": (("1mo", "3mo", "6mo", "1y", "2y", "5y", "max"), "1y"),
     "1wk": (("6mo", "1y", "2y", "5y", "max"), "5y"),
     "1mo": (("1y", "2y", "5y", "max"), "max"),
 }
-_INTRADAY = {"5m", "15m", "60m"}
+_INTRADAY = {"5m", "15m", "30m", "60m"}
 _MARKETS = {"india", "us"}
 _SYMBOL_RE = re.compile(r"^[A-Z0-9&\-\.\^=_]{1,24}$")
 
@@ -41,7 +42,7 @@ _YAHOO_TO_TV = {
 # (value, fetched_at)
 _history_cache: Dict[Tuple[str, str, str, str], Tuple[Dict[str, Any], float]] = {}
 _resolve_cache: Dict[Tuple[str, str], Tuple[Dict[str, Any], float]] = {}
-_HISTORY_TTL = {"5m": 30, "15m": 60, "60m": 120}
+_HISTORY_TTL = {"5m": 30, "15m": 60, "30m": 60, "60m": 120}
 _HISTORY_TTL_DEFAULT = 300
 _RESOLVE_TTL = 24 * 3600
 _CACHE_MAX = 512
@@ -147,7 +148,7 @@ def _validate_params(market: str, interval: str, range_period: Optional[str]) ->
 async def get_market_history(
     symbol: str = Query(..., description="Stock symbol, e.g. RELIANCE, GVT&D, NVDA"),
     market: str = Query("india", description="india or us"),
-    interval: str = Query("1d", description="5m, 15m, 60m, 1d, 1wk, 1mo"),
+    interval: str = Query("1d", description="5m, 15m, 30m, 60m, 1d, 1wk, 1mo"),
     range_period: Optional[str] = Query(None, description="Defaults per interval"),
 ):
     """OHLCV candles. 404 when the symbol has no data, 422 on bad parameters."""

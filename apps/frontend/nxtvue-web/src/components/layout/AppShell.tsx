@@ -15,8 +15,12 @@ interface AppShellProps {
 export function AppShell({ className, hideHeader = false, children }: AppShellProps) {
   const location = useLocation()
   const isDashboard = location.pathname === '/dashboard' || location.pathname === '/'
-  const shouldHideHeader = hideHeader || isDashboard
-  const showTicker = location.pathname.startsWith('/chart')
+  // The analysis report page renders its own top bar and footer.
+  const isReport = location.pathname.startsWith('/analysis') && location.pathname !== '/analysis/history'
+  // The charts terminal also renders its own top bar, ticker and footer.
+  const isChart = location.pathname.startsWith('/chart')
+  const shouldHideHeader = hideHeader || isDashboard || isReport || isChart
+  const showTicker = false
 
   return (
     <div className={cn('min-h-screen', isDashboard ? 'bg-[#F5F5F5]' : 'bg-bg-primary text-text-primary', className)}>
@@ -32,7 +36,7 @@ export function AppShell({ className, hideHeader = false, children }: AppShellPr
           {children || <Outlet />}
         </ErrorBoundary>
       </main>
-      {!isDashboard && (
+      {!isDashboard && !isReport && !isChart && (
         <footer className="border-t border-slate-200 bg-white">
           <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
