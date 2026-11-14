@@ -2,10 +2,10 @@ import { HTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 import { Button } from '@/components/ui/Button'
-import { Search, FolderOpen, BarChart3, Users, Bell, History, LucideIcon } from 'lucide-react'
+import { Search, FolderOpen, BarChart3, Users, Bell, LucideIcon } from 'lucide-react'
 
 interface EmptyStateProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'portfolio' | 'watchlist' | 'analysis' | 'search' | 'compare' | 'notifications' | 'history'
+  variant?: 'default' | 'portfolio' | 'watchlist' | 'analysis' | 'search' | 'compare' | 'notifications'
   title?: string
   description?: string
   action?: ReactNode
@@ -47,11 +47,6 @@ const variantConfigs = {
     icon: Bell,
     title: "You're All Caught Up",
     description: 'No new alerts or notifications. Important market movements and reports will appear here.',
-  },
-  history: {
-    icon: History,
-    title: 'No Analysis History',
-    description: 'Reports and comparative valuations you generate will be automatically saved here.',
   },
 }
 

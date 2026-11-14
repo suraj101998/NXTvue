@@ -105,7 +105,7 @@ Verified in the browser on 2026-10-29 during market hours (NSE status "Open", NI
 | G9, G11 seed notification, mock flag | Not started | |
 | G10 intraday volume | Not started | Tickertape `charts/inter` has it. |
 | Option chain | Not started | NSE `option-chain-v3` works (nearest expiry only). |
-| Sector heatmaps for Pharma, Metal, Energy, Realty, Media | Not started | Tickertape has no constituents for these. Plan: filter the NIFTY 200 list by `sector`. |
+| Sector heatmaps for Pharma, Metal, Realty, Media, PSU/Private Bank, Fin Services, Oil & Gas, Consumer Durables, Healthcare | **Done** | Member list from NSE's `ind_<name>list.csv` (nsearchives.nseindia.com), quotes from Tickertape. Chemicals and Cement have no published list, so they show in "Sectors today" but are not clickable. Media's 6 small-caps with no Tickertape id are skipped (8 of 10 shown). |
 
 Behaviour of the new backend (`api/india_data.py`): per-endpoint TTL caches (quotes 15s, indices 30s, movers 60s, FII/DII 15 min, fundamentals 6h), one upstream fetch per key at a time, failures never cached, last good data served flagged `stale`, NSE cookie session re-warmed once on rejection. Unit tests: `apps/backend/tests/test_india_data.py` (20, upstreams mocked). Frontend: 9 new tests for the treemap and colour scale.
 
@@ -151,3 +151,17 @@ New `apps/backend/src/nxtvue/api/nse_client.py`:
 1. Re-add the contents of the `Plan/*.md` files (all empty).
 2. NSE constituent endpoint: `equity-stockIndices` now 404s. Its new path has to be read from nseindia.com's network tab (needs a browser session). This blocks the native NIFTY heatmap.
 3. Terms of use: NSE's public API is unofficial. If this ships to paying users, check NSE data licensing or use a licensed vendor.
+
+## 6. Dashboard Market Overview (2026-11-12)
+
+The Market Overview section now has an India / US switch, a Refresh button and sector-driven heatmaps. The separate India pulse section and the sector index cards were removed.
+
+| Part | Source | Notes |
+|---|---|---|
+| India pulse (VIX, breadth, movers, FII/DII, sectors) | NSE, `GET /market/india/pulse` | Unchanged, moved into the section. |
+| US pulse (VIX, breadth, movers, sectors, rates/dollar/commodities) | Yahoo (yfinance) + S&P 500 list from Wikipedia, `GET /market/us/pulse` | `api/us_pulse.py`. One batched download of ~515 tickers takes ~15 s, so the snapshot is cached 60 s and, once it exists, an expired one is served at once and refreshed in the background. Only the very first call waits. |
+| US "FII/DII" | none | There is no free daily US fund-flow feed. The card shows 10Y yield, dollar index, gold, WTI and Bitcoin instead, and says so. |
+| Sector heatmap, India | `GET /market/india/heatmap?index=NIFTYPHARMA` etc. | 14 clickable sectors. |
+| Sector heatmap, US | `GET /market/us/heatmap?sector=Health Care` | S&P 500 stocks of one GICS sector, grouped by sub-industry. Tile size is price x volume (no market cap in the feed). |
+
+Not tested: behaviour from a cloud host (Wikipedia and Yahoo rate limits), and US figures during market hours (checked after the close only).

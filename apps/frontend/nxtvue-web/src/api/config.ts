@@ -86,5 +86,4 @@ export const features = {
   enableRealChat: false, // Will be enabled in Phase 4
   enablePortfolioSync: false, // Will be enabled in Phase 3
   enableWatchlistSync: false, // Will be enabled in Phase 3
-  enableAnalysisHistory: false, // Will be enabled in Phase 3
 }

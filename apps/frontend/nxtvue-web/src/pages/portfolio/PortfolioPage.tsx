@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Sun, Moon, Link2Off, CloudOff, RefreshCw } from 'lucide-react'
+import { Link2Off, CloudOff, RefreshCw } from 'lucide-react'
+import { ThemeButton, RefreshButton } from '@/components/layout/PageActions'
+import { useTheme } from '@/hooks/useTheme'
 import { formatCurrency } from '@/hooks/usePortfolioHoldings'
 import { startIndMoneyConnect } from '@/api/client'
 import { ApiError } from '@/api/errors'
@@ -172,19 +174,11 @@ export function PortfolioPage() {
     PORTFOLIO_TABS.includes(tabParam as PortfolioTab) ? (tabParam as PortfolioTab) : 'overview',
   )
   const [holdingsTab, setHoldingsTab] = useState<'stocks' | 'mf' | 'bonds' | 'fd'>('stocks')
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('nxtvue_portfolio_theme') as 'dark' | 'light') || 'dark'
-  })
+  const { theme } = useTheme()
 
   const handleTabChange = (tab: PortfolioTab) => {
     setActiveTab(tab)
     setSearchParams({ tab })
-  }
-
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(nextTheme)
-    localStorage.setItem('nxtvue_portfolio_theme', nextTheme)
   }
 
   const { snapshot, holdings, loading: holdingsLoading, error: holdingsError, refresh: refreshAll } = useIndMoneyPortfolio()
@@ -405,11 +399,11 @@ export function PortfolioPage() {
         /* ── Base (Dark) ─────────────────────────────────────────────── */
         .p {
           padding: 44px 56px 64px;
-          background: radial-gradient(900px 520px at 88% -8%, #1c2b5a 0, #0000 62%),
-                      radial-gradient(700px 420px at -5% 0, #123530 0, #0000 58%),
-                      #080b12;
+          background: radial-gradient(900px 520px at 88% -8%, rgba(208,178,255,.10) 0, #0000 62%),
+                      radial-gradient(700px 420px at -5% 0, rgba(45,226,196,.10) 0, #0000 58%),
+                      #0c0c0e;
           color: #e8ecf5;
-          font: 14px/1.45 Inter, sans-serif;
+          font: 14px/1.45 Geist, Inter, sans-serif;
           display: flex;
           flex-direction: column;
           gap: 24px;
@@ -425,7 +419,7 @@ export function PortfolioPage() {
         .p-light {
           background: radial-gradient(800px 460px at 90% -8%, #dfe6ff 0, #0000 62%),
                       radial-gradient(600px 380px at -5% 0, #e6f3ec 0, #0000 58%),
-                      #f5f6fa;
+                      #f4f6fa;
           color: #0f1424;
         }
         .p-light h1.p-title em { color: #b45309; font-style: italic; }
@@ -509,10 +503,10 @@ export function PortfolioPage() {
           min-height: 44px;
           padding: 0 18px;
           border-radius: 12px;
-          border: 1px solid #2a344b;
-          background: #10161f;
+          border: 1px solid rgba(255,255,255,.12);
+          background: #151517;
           color: #e8ecf5;
-          font: 500 14px Inter, sans-serif;
+          font: 500 14px Geist, Inter, sans-serif;
           cursor: pointer;
           transition: transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s, box-shadow .35s;
         }
@@ -525,8 +519,8 @@ export function PortfolioPage() {
           display: flex;
           gap: 4px;
           padding: 4px;
-          background: #0f1420;
-          border: 1px solid #1e2638;
+          background: #151517;
+          border: 1px solid rgba(255,255,255,.08);
           border-radius: 14px;
           width: fit-content;
         }
@@ -534,7 +528,7 @@ export function PortfolioPage() {
           padding: 11px 22px;
           border-radius: 10px;
           color: #a3aec4;
-          font: 500 14px Inter, sans-serif;
+          font: 500 14px Geist, Inter, sans-serif;
           border: 0;
           background: none;
           cursor: pointer;
@@ -555,8 +549,8 @@ export function PortfolioPage() {
 
         /* ── Cards ───────────────────────────────────────────────────── */
         .c {
-          background: linear-gradient(160deg, #131a29, #0c111c);
-          border: 1px solid #212b40;
+          background: linear-gradient(160deg, #18181b, #111113);
+          border: 1px solid rgba(255,255,255,.08);
           border-radius: 22px;
           padding: 28px;
         }
@@ -765,7 +759,7 @@ export function PortfolioPage() {
           border: 1px solid #2a344b;
           background: #0f1420;
           color: #a3aec4;
-          font: 500 14px Inter, sans-serif;
+          font: 500 14px Geist, Inter, sans-serif;
           cursor: pointer;
           transition: all .2s ease;
         }
@@ -991,26 +985,8 @@ export function PortfolioPage() {
           <h1 className="p-title">Your wealth, <em>at a glance</em></h1>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button onClick={toggleTheme} className="btn" title={`Switch to ${isLight ? 'Dark' : 'Light'} mode`} aria-label="Toggle Theme">
-            {isLight ? <Moon width={16} height={16} /> : <Sun width={16} height={16} />}
-            <span>{isLight ? 'Dark' : 'Light'}</span>
-          </button>
-          <button
-            onClick={handleRefresh}
-            disabled={holdingsLoading || watchlistLoading}
-            className="btn"
-            aria-label="Refresh Data"
-          >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              aria-hidden="true"
-              style={{ animation: (holdingsLoading || watchlistLoading) ? 'p-rot 1s linear infinite' : undefined }}
-            >
-              <path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" />
-            </svg>
-            <span>Refresh</span>
-          </button>
+          <ThemeButton />
+          <RefreshButton onClick={handleRefresh} loading={holdingsLoading || watchlistLoading} />
         </div>
       </div>
 

@@ -1,0 +1,189 @@
+/* Dashboard polish: lighting, glass cards, type scale, scroll reveals and hovers.
+   Dark mode is Midnight Sapphire; light mode is the same scene in pastel (soft colour pools, frosted white glass). */
+
+/* ── Backdrop: fixed light pools behind navbar, page and footer ─────────────── */
+.dxb { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.dxb-l { position: absolute; will-change: transform; }
+.dxb-l i { display: block; width: 100%; height: 100%; border-radius: 50%; animation: dxb-drift 28s ease-in-out infinite alternate; }
+.dxb-a { top: -22vh; right: -14vw; width: 70vw; height: 70vw; }
+.dxb-a i { background: radial-gradient(closest-side, rgba(129, 140, 248, .34), rgba(129, 140, 248, .1) 55%, transparent); }
+.dxb-b { top: 26vh; left: -22vw; width: 60vw; height: 60vw; }
+.dxb-b i { background: radial-gradient(closest-side, rgba(192, 132, 252, .24), rgba(192, 132, 252, .07) 55%, transparent); animation-duration: 34s; animation-delay: -9s; }
+.dxb-c { bottom: -30vh; right: 0; width: 64vw; height: 64vw; }
+.dxb-c i { background: radial-gradient(closest-side, rgba(56, 189, 248, .22), rgba(56, 189, 248, .06) 55%, transparent); animation-duration: 31s; animation-delay: -4s; }
+.dxb-d { bottom: -24vh; left: -4vw; width: 46vw; height: 46vw; }
+.dxb-d i { background: radial-gradient(closest-side, rgba(251, 191, 36, .2), rgba(244, 114, 182, .08) 55%, transparent); animation-duration: 38s; animation-delay: -15s; }
+.dark .dxb-a i { background: radial-gradient(closest-side, rgba(99, 102, 241, .46), rgba(99, 102, 241, .14) 55%, transparent); }
+.dark .dxb-b i { background: radial-gradient(closest-side, rgba(168, 85, 247, .28), rgba(168, 85, 247, .08) 55%, transparent); }
+.dark .dxb-d i { background: radial-gradient(closest-side, rgba(251, 191, 36, .15), rgba(244, 114, 182, .06) 55%, transparent); }
+@keyframes dxb-drift { to { transform: translate3d(5vw, 3vh, 0) scale(1.1); } }
+.dxb-vig { position: absolute; inset: 0; background: radial-gradient(120% 92% at 50% 38%, transparent 55%, rgba(120, 130, 190, .14) 100%); }
+.dark .dxb-vig { background: radial-gradient(120% 92% at 50% 38%, transparent 52%, rgba(2, 4, 16, .6) 100%); }
+.dxb-grain {
+  position: absolute; inset: 0; opacity: .05; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.dark .dxb-grain { opacity: .07; mix-blend-mode: overlay; }
+
+/* The page sits above the backdrop. The base colour shows before the lights paint. */
+.dash-dark { background: #f3f5fc; }
+.dark .dash-dark { background: #060919; }
+.dash-dark > main, .dash-dark > footer { position: relative; z-index: 1; }
+
+/* ── Navbar: frosted glass over the backdrop (white in light, navy in dark) ──── */
+.dash-dark header[role="banner"] > div.relative {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .78), rgba(255, 255, 255, .5));
+  border-bottom-color: rgba(99, 102, 241, .14);
+  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+}
+.dash-dark .nx-hair { display: block; background: linear-gradient(90deg, transparent, #6366f1, #c084fc, transparent); opacity: .45; }
+.dark .dash-dark header[role="banner"] > div.relative {
+  background: linear-gradient(180deg, rgba(10, 14, 40, .72), rgba(8, 12, 34, .5));
+  border-bottom-color: rgba(165, 180, 252, .12);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+}
+.dark .dash-dark .nx-hair { background: linear-gradient(90deg, transparent, #818cf8, #d8b4fe, transparent); opacity: .6; }
+
+/* ── Footer takes its tint from the same backdrop ───────────────────────────── */
+.dash-dark .sf {
+  --sf-acc: #4f46e5;
+  --sf-line: rgba(99, 102, 241, .16);
+  --sf-wm: linear-gradient(180deg, rgba(99, 102, 241, .3), rgba(168, 85, 247, .13) 52%, transparent 92%);
+}
+.dash-dark .sf::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, .35), transparent);
+}
+.dark .dash-dark .sf {
+  --sf-acc: #a5b4fc;
+  --sf-line: rgba(165, 180, 252, .13);
+  --sf-wm: linear-gradient(180deg, rgba(129, 140, 248, .5), rgba(192, 132, 252, .2) 52%, transparent 92%);
+}
+.dark .dash-dark .sf::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(165, 180, 252, .45), transparent);
+}
+
+/* ── Type: eyebrow, heading with a serif accent, lead ───────────────────────── */
+.dx-eyebrow {
+  display: inline-flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 8px 15px; border-radius: 999px;
+  font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase;
+  color: #4a50b8; background: rgba(99, 102, 241, .07); border: 1px solid rgba(99, 102, 241, .2);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.dark .dx-eyebrow { color: #b4bdf2; background: rgba(129, 140, 248, .09); border-color: rgba(165, 180, 252, .2); box-shadow: 0 0 24px -8px rgba(99, 102, 241, .5); }
+.dx-eyebrow i { width: 7px; height: 7px; border-radius: 50%; background: #9aa3b5; }
+.dx-eyebrow i.on { background: #10b981; box-shadow: 0 0 10px #10b981; animation: dx-pulse 2.4s ease-in-out infinite; }
+@keyframes dx-pulse { 50% { opacity: .45; } }
+
+.dx-h2 {
+  margin: 0 0 18px; color: #0f1424; font: 500 clamp(40px, 5.4vw, 72px)/1.02 Geist, Inter, system-ui, sans-serif; letter-spacing: -.045em;
+}
+.dark .dx-h2 { color: #f3f5ff; }
+.dx-h2 em, .dx-serif {
+  font: italic 400 1.08em/1 'Instrument Serif', Georgia, serif; letter-spacing: -.02em; padding-right: .04em;
+  background: linear-gradient(100deg, #4f46e5, #a855f7 60%, #ea580c); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.dark .dx-h2 em, .dark .dx-serif { background-image: linear-gradient(100deg, #a5b4fc, #d8b4fe 55%, #fcd9a8); }
+.dx-lead { max-width: 560px; margin: 0; color: #5b6680; font: 400 clamp(16px, 1.4vw, 19px)/1.65 Geist, Inter, system-ui, sans-serif; letter-spacing: -.005em; }
+.dark .dx-lead { color: #98a2c8; }
+
+/* Card title: small, mono, tinted. Numbers use the serif for a clear first read. */
+.dx-title { margin: 0 0 18px; font: 500 11px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .15em; text-transform: uppercase; color: #5a62c4; }
+.dark .dx-title { color: #a5b4fc; }
+.dx-sub { margin: 0 0 8px; font: 500 10.5px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: #8590a5; }
+.dark .dx-sub { color: #7f8bb8; }
+.dx-kpi { font: 400 clamp(46px, 4.4vw, 60px)/1 'Instrument Serif', Georgia, serif; letter-spacing: -.02em; color: #0f1424; }
+.dark .dx-kpi { color: #f3f5ff; }
+.dx-note { color: #6a7488; font-size: 12px; line-height: 1.55; }
+.dark .dx-note { color: #8793c0; }
+
+/* ── Cards: layered glass with a light-catching border and a cursor spotlight ── */
+.dx-card {
+  position: relative; border-radius: 24px; padding: 26px;
+  background: linear-gradient(162deg, rgba(255, 255, 255, .92) 0%, rgba(255, 255, 255, .7) 55%, rgba(238, 241, 255, .72) 100%);
+  border: 1px solid transparent;
+  -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -24px 40px -32px rgba(99, 102, 241, .16), 0 22px 50px -30px rgba(60, 70, 160, .3);
+  transition: transform .55s cubic-bezier(.2, .7, .2, 1), box-shadow .55s cubic-bezier(.2, .7, .2, 1), border-color .4s;
+}
+.dx-card.flush { padding: 0; overflow: hidden; }
+.dx-card.flush:hover { transform: none; }
+/* The dashboard's two dark-purple index cards keep their colour in light mode. */
+.dx-card.ink { background: #2b2644; border-color: rgba(255, 255, 255, .06); }
+.dx-card.tight { padding: 20px; }
+.dx-card:hover { transform: translateY(-4px); box-shadow: inset 0 1px 0 #fff, inset 0 -24px 40px -32px rgba(99, 102, 241, .24), 0 34px 64px -30px rgba(60, 70, 160, .42), 0 0 50px -28px rgba(99, 102, 241, .5); }
+/* Gradient hairline border and a pointer spotlight in light mode (the dark ink cards keep their solid look). */
+.dx-card:not(.ink)::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; padding: 1px; pointer-events: none; opacity: .9; transition: opacity .5s;
+  background: linear-gradient(150deg, rgba(99, 102, 241, .42), rgba(15, 20, 36, .07) 32%, rgba(15, 20, 36, .05) 68%, rgba(168, 85, 247, .32));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.dx-card:not(.ink)::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .5s;
+  background: radial-gradient(440px circle at var(--mx, 50%) var(--my, 0%), rgba(99, 102, 241, .1), transparent 62%);
+}
+.dx-card:not(.ink):hover::after { opacity: 1; }
+
+.dark .dx-card, .dark .dx-glass {
+  border-color: transparent;
+  background: linear-gradient(162deg, rgba(255, 255, 255, .085) 0%, rgba(255, 255, 255, .03) 42%, rgba(124, 140, 255, .045) 100%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%); backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .11), inset 0 -24px 40px -30px rgba(99, 102, 241, .22), 0 30px 70px -34px rgba(2, 4, 26, .95);
+}
+.dark .dx-card:hover, .dark .dx-glass:hover {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -24px 40px -30px rgba(129, 140, 248, .3), 0 40px 80px -34px rgba(2, 4, 26, 1), 0 0 60px -26px rgba(129, 140, 248, .55);
+}
+/* Gradient hairline border (bright at the corners facing the light). */
+.dark .dx-card::before, .dark .dx-glass::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; padding: 1px; pointer-events: none; opacity: .85; transition: opacity .5s;
+  background: linear-gradient(150deg, rgba(165, 180, 252, .55), rgba(255, 255, 255, .07) 32%, rgba(255, 255, 255, .04) 68%, rgba(216, 180, 254, .34));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.dark .dx-card:hover::before, .dark .dx-glass:hover::before { opacity: 1; }
+/* Spotlight that follows the pointer (--mx / --my are set by DashBackdrop). */
+.dark .dx-card::after, .dark .dx-glass::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .5s;
+  background: radial-gradient(440px circle at var(--mx, 50%) var(--my, 0%), rgba(129, 140, 248, .16), transparent 62%);
+}
+.dark .dx-card:hover::after, .dark .dx-glass:hover::after { opacity: 1; }
+
+/* Small pills (benchmarks) and the market switch */
+.dx-chip {
+  display: flex; align-items: baseline; gap: 12px; padding: 9px 18px; border-radius: 999px; font-size: 14px;
+  background: rgba(255, 255, 255, .72); border: 1px solid rgba(99, 102, 241, .16); box-shadow: 0 8px 20px -14px rgba(60, 70, 160, .35);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  transition: transform .4s cubic-bezier(.2, .7, .2, 1), border-color .3s, background .3s;
+}
+.dx-chip:hover { transform: translateY(-2px); border-color: rgba(99, 102, 241, .4); background: rgba(255, 255, 255, .95); }
+.dark .dx-chip { background: rgba(255, 255, 255, .05); border-color: rgba(165, 180, 252, .16); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.dark .dx-chip:hover { border-color: rgba(165, 180, 252, .4); background: rgba(129, 140, 248, .1); }
+.dx-seg { display: flex; padding: 5px; border-radius: 999px; background: rgba(255, 255, 255, .55); border: 1px solid rgba(99, 102, 241, .16); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.dark .dx-seg { background: rgba(255, 255, 255, .04); border-color: rgba(165, 180, 252, .16); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+
+/* Rows: a soft highlight and a nudge on hover */
+.dx-row { margin: 0 -10px; padding: 7px 10px; border-radius: 12px; transition: background .25s, transform .3s cubic-bezier(.2, .7, .2, 1); }
+.dx-row:hover { background: rgba(99, 102, 241, .08); transform: translateX(3px); }
+.dark .dx-row:hover { background: rgba(129, 140, 248, .1); }
+
+/* Buttons */
+.dx-btn { transition: transform .35s cubic-bezier(.2, .7, .2, 1), box-shadow .35s, background-color .25s, color .25s !important; }
+.dx-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -10px rgba(99, 102, 241, .6); }
+.dx-btn:active { transform: translateY(0) scale(.98); }
+
+/* Hero frame */
+.dx-hero { box-shadow: 0 30px 80px -40px rgba(15, 20, 36, .35); }
+.dark .dx-hero { box-shadow: 0 0 0 1px rgba(165, 180, 252, .16), 0 50px 120px -50px rgba(99, 102, 241, .65), 0 30px 60px -40px rgba(2, 4, 26, .9); }
+
+/* ── Scroll reveal (an animation, so a card's own hover transform still works afterwards) ── */
+.rv { opacity: 0; }
+.rv.in { opacity: 1; animation: rv-in 1s cubic-bezier(.2, .7, .2, 1) var(--d, 0ms) backwards; }
+@keyframes rv-in { from { opacity: 0; transform: translate3d(0, 34px, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; }
+  .rv.in { animation: none; }
+  .dxb-l i { animation: none; }
+  .dx-card, .dx-chip, .dx-row, .dx-btn { transition: none !important; }
+}

@@ -1,48 +1,31 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '@/auth/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import { useIndices } from '@/hooks/useIndices'
 import { NxtVueChatbot } from '@/components/dashboard/NxtVueChatbot'
 import { QuickStockSearchModal } from '@/components/dashboard/QuickStockSearchModal'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { Reveal } from '@/components/motion/Reveal'
+import { useParallax } from '@/hooks/useParallax'
 import { MarketOverviewSection, USFlagIcon } from '@/components/dashboard/MarketOverviewSection'
-import { IndiaPulseSection } from '@/components/dashboard/IndiaPulseSection'
 import { GlobalMarketsSection } from '@/components/dashboard/GlobalMarketsSection'
-
-const LogoIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M 128.005 191.173 C 128.448 156.208 156.93 128 192 128 L 192 64 L 128 64 C 128 99.346 99.346 128 64 128 L 64 192 L 128 192 Z M 192 256 L 64 256 C 28.654 256 0 227.346 0 192 L 0 64 L 64 64 L 64 0 L 192 0 C 227.346 0 256 28.654 256 64 L 256 192 L 192 192 Z" />
-  </svg>
-)
 
 export function DashboardPage() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
   const { data: indicesData } = useIndices()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  // Hero depth: the video drifts a little slower than the page, the copy a little faster.
+  const videoRef = useParallax<HTMLVideoElement>(0.1, { scale: 1.12, max: 900 })
+  const copyRef = useParallax<HTMLDivElement>(-0.06, { max: 700 })
 
   // Card 1 Quick Stock Form State
   const [quickTicker, setQuickTicker] = useState('')
   const [quickMarket, setQuickMarket] = useState<'india' | 'us'>('india')
   const [quickYear, setQuickYear] = useState<number>(2026)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
-
   const handleQuickAnalyzeSubmit = (e: FormEvent) => {
     e.preventDefault()
     const ticker = quickTicker.trim() || (quickMarket === 'india' ? 'RELIANCE' : 'NVDA')
     navigate(`/analysis?ticker=${ticker.toUpperCase()}&market=${quickMarket}&year=${quickYear}`)
   }
-
-  const navItems = [
-    { label: 'Charts', path: '/chart' },
-    { label: 'Analyze', path: '/analysis' },
-    { label: 'My Portfolio', path: '/portfolio' },
-    { label: 'About', path: '/about' },
-  ]
 
   const indianIndices = indicesData?.india || []
   const usIndices = indicesData?.us || []
@@ -70,74 +53,41 @@ export function DashboardPage() {
         }
       `}</style>
       
-      <div className="flex flex-col bg-[#F5F5F5] min-h-screen">
+      <div className="flex flex-col bg-transparent min-h-screen">
         {/* Hero Section with Video */}
-        <div className="h-screen flex flex-col overflow-hidden relative">
-          <nav className="absolute top-0 left-0 right-0 z-20 px-6 py-5">
-            <div className="flex items-center justify-between max-w-[88rem] mx-auto">
-              <Link to="/dashboard" className="flex items-center gap-2">
-                <LogoIcon className="w-7 h-7 text-black" />
-                <span className="text-2xl font-medium tracking-tight text-black">NxtVue</span>
-              </Link>
-              
-              <div className="hidden md:flex items-center gap-8">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.label}
-                    to={item.path}
-                    className="text-base text-gray-700 hover:text-black font-medium transition-colors duration-200"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <NotificationBell />
-                <button
-                  onClick={() => navigate('/pricing')}
-                  className="bg-black text-white text-base font-medium px-7 py-2.5 rounded-full hover:bg-emerald-600 active:scale-95 transition-all duration-200 cursor-pointer"
-                >
-                  See Plans
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="bg-black text-white text-base font-medium px-7 py-2.5 rounded-full hover:bg-red-600 active:scale-95 transition-all duration-200 cursor-pointer"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          </nav>
-
+        <div className="flex flex-col overflow-hidden relative" style={{ height: 'calc(100vh - var(--nav-h))' }}>
           {/* Hero Content Box */}
-          <main className="flex-1 px-6 pt-20 pb-6 flex items-end">
-            <div className="relative w-full rounded-2xl overflow-hidden max-w-[88rem] mx-auto" style={{ height: 'calc(100vh - 96px)' }}>
+          <main className="flex-1 px-6 pt-6 pb-6 flex items-end">
+            <div className="dx-hero relative w-full rounded-[28px] overflow-hidden max-w-[88rem] mx-auto" style={{ height: 'calc(100vh - var(--nav-h) - 48px)' }}>
               <video 
-                className="absolute inset-0 w-full h-full object-cover"
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-cover dark:saturate-[1.15] dark:contrast-[1.05]"
                 autoPlay 
                 muted 
                 loop 
                 playsInline
                 src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260423_161253_c72b1869-400f-45ed-ac0c-52f68c2ed5bd.mp4"
               />
+              {/* Dark mode: keep the video bright and only shade the left (text) side and the bottom edge. */}
+              <div className="absolute inset-0 hidden dark:block bg-gradient-to-r from-[#070a1c]/85 via-[#0a1030]/45 to-transparent" aria-hidden="true" />
+              <div className="absolute inset-0 hidden dark:block bg-gradient-to-t from-[#070a1c]/55 via-transparent to-transparent" aria-hidden="true" />
               
-              <div className="relative z-10 flex flex-col items-start justify-start h-full p-12 pt-36">
+              <div ref={copyRef} className="relative z-10 flex flex-col items-start justify-start h-full p-12 pt-24">
                 <h1 
-                  className="text-black text-5xl md:text-6xl font-medium leading-tight max-w-xl mb-4"
-                  style={{ letterSpacing: '-0.04em' }}
+                  className="text-black dark:text-white text-5xl md:text-7xl font-medium leading-[1.02] max-w-2xl mb-5"
+                  style={{ letterSpacing: '-0.045em' }}
                 >
-                  Let Your Wealth<br />Works
+                  Let Your Wealth<br /><span className="dx-serif">Works</span>
                 </h1>
                 <p 
-                  className="text-black/70 text-base md:text-lg max-w-md mb-8 leading-relaxed font-normal"
+                  className="text-black/70 dark:text-white/75 text-base md:text-lg max-w-md mb-8 leading-relaxed font-normal"
                 >
                   An automated, reward-powered digital dollar built for native passive earnings and effortless connection into DeFi.
                 </p>
                 
                 <button
                   onClick={() => navigate('/portfolio')}
-                  className="inline-flex items-center gap-3 bg-black text-white text-base md:text-lg font-medium px-8 py-3 rounded-full hover:bg-blue-800 transition-colors duration-200 cursor-pointer group"
+                  className="inline-flex items-center gap-3 bg-black text-white dark:bg-white dark:text-black text-base md:text-lg font-medium px-8 py-3 rounded-full dx-btn hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-200 cursor-pointer group"
                 >
                   Analyze Your Portfolio
                 </button>
@@ -153,12 +103,12 @@ export function DashboardPage() {
                   <div className="marquee-track">
                     {[1, 2].map((loopIndex) => (
                       <div key={loopIndex} className="flex items-center">
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap" style={{ fontFamily: 'Georgia, serif', fontWeight: 700, letterSpacing: '-0.02em', fontSize: '15px' }}>BSE</span>
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap uppercase" style={{ fontFamily: 'Arial, sans-serif', fontWeight: 900, letterSpacing: '0.08em', fontSize: '13px' }}>NSE</span>
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap italic" style={{ fontFamily: '"Trebuchet MS", sans-serif', fontWeight: 600, letterSpacing: '0.01em', fontSize: '15px' }}>BondScanner</span>
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap uppercase" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.12em', fontSize: '13px' }}>INDMoney</span>
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap" style={{ fontFamily: 'Palatino, "Book Antiqua", serif', fontWeight: 400, letterSpacing: '-0.01em', fontSize: '16px' }}>Groww</span>
-                        <span className="mx-7 shrink-0 text-black/60 whitespace-nowrap" style={{ fontFamily: 'Impact, "Arial Narrow", sans-serif', fontWeight: 400, letterSpacing: '0.04em', fontSize: '14px' }}>Screener</span>
+                        <span className="mx-7 shrink-0 text-black/60 dark:text-white/60 whitespace-nowrap" style={{ fontFamily: 'Georgia, serif', fontWeight: 700, letterSpacing: '-0.02em', fontSize: '15px' }}>BSE</span>
+                        <span className="mx-7 shrink-0 text-black/60 dark:text-white/60 whitespace-nowrap uppercase" style={{ fontFamily: 'Arial, sans-serif', fontWeight: 900, letterSpacing: '0.08em', fontSize: '13px' }}>NSE</span>
+                        <span className="mx-7 shrink-0 text-black/60 dark:text-white/60 whitespace-nowrap italic" style={{ fontFamily: '"Trebuchet MS", sans-serif', fontWeight: 600, letterSpacing: '0.01em', fontSize: '15px' }}>BondScanner</span>
+                        <span className="mx-7 shrink-0 text-black/60 dark:text-white/60 whitespace-nowrap uppercase" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.12em', fontSize: '13px' }}>INDMoney</span>
+                        <span className="mx-7 shrink-0 text-black/60 dark:text-white/60 whitespace-nowrap" style={{ fontFamily: 'Palatino, "Book Antiqua", serif', fontWeight: 400, letterSpacing: '-0.01em', fontSize: '16px' }}>Groww</span>
+                        <span className="mx-7 shrink-0 text-black/60 dark:text-white/60 whitespace-nowrap" style={{ fontFamily: 'Impact, "Arial Narrow", sans-serif', fontWeight: 400, letterSpacing: '0.04em', fontSize: '14px' }}>Screener</span>
                       </div>
                     ))}
                   </div>
@@ -169,36 +119,34 @@ export function DashboardPage() {
         </div>
 
         {/* Section 2: Meet Agent NxtVue */}
-        <section className="bg-[#F5F5F5] px-6 py-24">
+        <section className="bg-transparent px-6 py-24">
           <div className="max-w-[88rem] mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16 items-start">
-              <div>
-                <h2 
-                  className="text-black text-4xl md:text-5xl font-medium leading-tight mb-8"
-                  style={{ letterSpacing: '-0.03em' }}
-                >
-                  Meet Agent NxtVue.
+              <Reveal>
+                <div className="dx-eyebrow"><i className="on" />Your market copilot</div>
+                <h2 className="dx-h2 mb-8">
+                  Meet Agent <em>NxtVue.</em>
                 </h2>
                 <button
                   onClick={() => navigate('/portfolio?tab=watchlist')}
-                  className="inline-flex items-center gap-3 bg-black text-white text-base font-medium px-8 py-3 rounded-full hover:bg-blue-800 transition-colors duration-200 cursor-pointer group"
+                  className="inline-flex items-center gap-3 bg-black text-white dark:bg-white dark:text-black text-base font-medium px-8 py-3 rounded-full dx-btn hover:bg-indigo-600 hover:text-white dark:hover:bg-indigo-200 cursor-pointer group"
                 >
                   View Your Watchlist
                 </button>
-              </div>
-              <div>
-                <p className="text-black/70 text-2xl md:text-3xl leading-relaxed font-normal">
+              </Reveal>
+              <Reveal delay={120}>
+                <p className="text-black/70 dark:text-[#aab3da] text-2xl md:text-[28px] leading-[1.5] font-normal" style={{ letterSpacing: '-0.015em' }}>
                   Agent NxtVue tracks your Indian and US holdings, watches the markets and explains what moved, so you can decide with the full picture.
                 </p>
-              </div>
+              </Reveal>
             </div>
 
             {/* 4 Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Card 1: Interactive Analyze Your Stock Form with Zoom on Hover */}
-              <div
-                className="col-span-1 sm:col-span-2 rounded-2xl p-7 min-h-[420px] flex flex-col justify-between relative overflow-hidden shadow-sm border border-black/5 group hover:scale-[1.02] hover:shadow-2xl transition-all duration-500 cursor-pointer"
+              <Reveal
+                className="dx-card dx-glass col-span-1 sm:col-span-2 p-7 min-h-[420px] flex flex-col justify-between overflow-hidden group"
               >
                 <div
                   className="absolute inset-0 w-full h-full group-hover:scale-110 transition-transform duration-700 ease-out"
@@ -208,17 +156,18 @@ export function DashboardPage() {
                     backgroundPosition: 'center'
                   }}
                 />
+                <div className="absolute inset-0 hidden dark:block bg-gradient-to-tr from-[#070a1c]/80 via-[#0a1030]/35 to-transparent" aria-hidden="true" />
                 <div className="relative z-10">
-                  <span className="text-xs font-bold uppercase tracking-wider text-black/60 bg-white/70 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                  <span className="text-xs font-bold uppercase tracking-wider text-black/60 dark:text-white/70 bg-white/70 dark:bg-white/10 px-2.5 py-1 rounded-full backdrop-blur-sm">
                     Stock Analysis Engine
                   </span>
                   <h3
-                    className="text-black text-2xl font-medium leading-snug mt-2 mb-1"
+                    className="text-black dark:text-white text-2xl font-medium leading-snug mt-2 mb-1"
                     style={{ letterSpacing: '-0.02em' }}
                   >
                     Analyze Your Stock
                   </h3>
-                  <p className="text-black/70 text-xs font-medium max-w-sm mb-3">
+                  <p className="text-black/70 dark:text-white/75 text-xs font-medium max-w-sm mb-3">
                     Enter any ticker from NSE/BSE or US markets for institutional valuation & risk metrics.
                   </p>
                 </div>
@@ -232,7 +181,7 @@ export function DashboardPage() {
                       value={quickTicker}
                       onChange={(e) => setQuickTicker(e.target.value)}
                       placeholder="Ticker (RELIANCE, NVDA)..."
-                      className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-black placeholder:text-black/60 focus:outline-none focus:ring-2 focus:ring-black shadow-sm"
+                      className="w-full bg-white/95 dark:bg-[#0d1330]/90 backdrop-blur-md border border-black/10 dark:border-white/15 rounded-lg px-2.5 py-1.5 text-[14px] font-semibold text-black dark:text-white placeholder:text-black/60 dark:placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white shadow-sm"
                     />
                   </div>
 
@@ -242,7 +191,7 @@ export function DashboardPage() {
                       aria-label="Market"
                       value={quickMarket}
                       onChange={(e) => setQuickMarket(e.target.value as 'india' | 'us')}
-                      className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2 py-1.5 text-[14px] font-semibold text-black focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
+                      className="w-full bg-white/95 dark:bg-[#0d1330]/90 backdrop-blur-md border border-black/10 dark:border-white/15 rounded-lg px-2 py-1.5 text-[14px] font-semibold text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white cursor-pointer shadow-sm"
                     >
                       <option value="india">🇮🇳 India (NSE/BSE)</option>
                       <option value="us">🇺🇸 US (NYSE/NASDAQ)</option>
@@ -255,7 +204,7 @@ export function DashboardPage() {
                       aria-label="Projection horizon"
                       value={quickYear}
                       onChange={(e) => setQuickYear(Number(e.target.value))}
-                      className="w-full bg-white/95 backdrop-blur-md border border-black/10 rounded-lg px-2 py-1.5 text-[14px] font-semibold text-black focus:outline-none focus:ring-2 focus:ring-black cursor-pointer shadow-sm"
+                      className="w-full bg-white/95 dark:bg-[#0d1330]/90 backdrop-blur-md border border-black/10 dark:border-white/15 rounded-lg px-2 py-1.5 text-[14px] font-semibold text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white cursor-pointer shadow-sm"
                     >
                       <option value={2026}>1 Year (2026)</option>
                       <option value={2027}>2 Years (2027)</option>
@@ -272,22 +221,22 @@ export function DashboardPage() {
                         const ticker = quickTicker.trim() || (quickMarket === 'india' ? 'RELIANCE' : 'NVDA')
                         navigate(`/chart/${encodeURIComponent(ticker.toUpperCase())}?market=${quickMarket}`)
                       }}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-black text-white text-[12px] font-semibold px-3 py-2 rounded-full hover:bg-yellow-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-black text-white dark:bg-white dark:text-black text-[12px] font-semibold px-3 py-2 rounded-full hover:bg-yellow-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer"
                     >
                       <span>View Chart</span>
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-black text-white text-[12px] font-semibold px-3 py-2 rounded-full hover:bg-emerald-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer group/btn"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 bg-black text-white dark:bg-white dark:text-black text-[12px] font-semibold px-3 py-2 rounded-full hover:bg-emerald-600 active:scale-[0.98] transition-all duration-200 shadow-md cursor-pointer group/btn"
                     >
                       <span className="whitespace-nowrap">AI Report</span>
                     </button>
                   </div>
                 </form>
-              </div>
+              </Reveal>
 
               {/* Card 2: Indian Market Indices with Live Mini Chips */}
-              <div className="bg-[#2B2644] rounded-2xl p-4 min-h-[380px] flex flex-col text-white shadow-sm border border-white/5 group hover:scale-[1.02] hover:shadow-2xl transition-all duration-300">
+              <Reveal delay={90} className="dx-card ink tight min-h-[380px] flex flex-col text-white group">
                 
                 {/* Ultra-compact Minimal Header */}
                 <div className="relative flex items-center justify-between mb-2.5 pb-2 border-b border-white/[0.08] shrink-0">
@@ -348,10 +297,10 @@ export function DashboardPage() {
                     })
                   )}
                 </div>
-              </div>
+              </Reveal>
 
               {/* Card 3: US Market Indices with Live Mini Chips */}
-              <div className="bg-[#2B2644] rounded-2xl p-4 min-h-[380px] flex flex-col text-white shadow-sm border border-white/5 group hover:scale-[1.02] hover:shadow-2xl transition-all duration-300">
+              <Reveal delay={180} className="dx-card ink tight min-h-[380px] flex flex-col text-white group">
                 
                 {/* Ultra-compact Minimal Header */}
                 <div className="relative flex items-center justify-between mb-2.5 pb-2 border-b border-white/[0.08] shrink-0">
@@ -405,16 +354,16 @@ export function DashboardPage() {
                     })
                   )}
                 </div>
-              </div>
+              </Reveal>
             </div>
           </div>
         </section>
 
         {/* Section 3: Backers & Partners Marquee */}
-        <section className="bg-[#F5F5F5] px-6 py-8 overflow-hidden">
-          <div className="max-w-[88rem] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 items-center border-y border-black/5 py-8">
+        <section className="bg-transparent px-6 py-8 overflow-hidden">
+          <Reveal className="max-w-[88rem] mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 items-center border-y border-black/5 dark:border-[#a5b4fc]/15 py-8">
             <div className="col-span-1">
-              <p className="text-black/70 text-base leading-relaxed whitespace-pre-line font-medium">
+              <p className="dx-sub !mb-0 !leading-[1.7]" style={{ whiteSpace: 'pre-line' }}>
                 Powered by trusted{'\n'}market data sources.
               </p>
             </div>
@@ -428,25 +377,22 @@ export function DashboardPage() {
               <div className="backers-track">
                 {[1, 2].map((loopIndex) => (
                   <div key={loopIndex} className="flex items-center">
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: '"Times New Roman", serif', fontWeight: 400, letterSpacing: '0.02em', fontSize: '14px' }}>BSE</span>
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap uppercase" style={{ fontFamily: '"Arial Black", sans-serif', fontWeight: 900, letterSpacing: '0.08em', fontSize: '16px' }}>NSE</span>
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: 'Impact, sans-serif', fontWeight: 700, letterSpacing: '0.05em', fontSize: '18px' }}>IndMoney</span>
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: 'Georgia, serif', fontWeight: 600, letterSpacing: '-0.02em', fontSize: '17px' }}>Groww</span>
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: 'Helvetica, sans-serif', fontWeight: 700, letterSpacing: '-0.01em', fontSize: '15px' }}>Yahoo Finance</span>
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap uppercase" style={{ fontFamily: 'Verdana, sans-serif', fontWeight: 700, letterSpacing: '0.06em', fontSize: '14px' }}>Screener</span>
-                    <span className="mx-10 shrink-0 text-black/65 whitespace-nowrap" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.18em', fontSize: '14px' }}>BondScanner</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap" style={{ fontFamily: '"Times New Roman", serif', fontWeight: 400, letterSpacing: '0.02em', fontSize: '14px' }}>BSE</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap uppercase" style={{ fontFamily: '"Arial Black", sans-serif', fontWeight: 900, letterSpacing: '0.08em', fontSize: '16px' }}>NSE</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap" style={{ fontFamily: 'Impact, sans-serif', fontWeight: 700, letterSpacing: '0.05em', fontSize: '18px' }}>IndMoney</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap" style={{ fontFamily: 'Georgia, serif', fontWeight: 600, letterSpacing: '-0.02em', fontSize: '17px' }}>Groww</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap" style={{ fontFamily: 'Helvetica, sans-serif', fontWeight: 700, letterSpacing: '-0.01em', fontSize: '15px' }}>Yahoo Finance</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap uppercase" style={{ fontFamily: 'Verdana, sans-serif', fontWeight: 700, letterSpacing: '0.06em', fontSize: '14px' }}>Screener</span>
+                    <span className="mx-10 shrink-0 text-black/65 dark:text-white/65 whitespace-nowrap" style={{ fontFamily: '"Courier New", monospace', fontWeight: 700, letterSpacing: '0.18em', fontSize: '14px' }}>BondScanner</span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* Section 4: Live Market Overview Section (Transformed from Use Modes) */}
         <MarketOverviewSection />
-
-        {/* Section 4b: NSE pulse (India VIX, breadth, movers, FII/DII, sectors) */}
-        <IndiaPulseSection />
 
         {/* Section 5: TradingView world map + economic map */}
         <GlobalMarketsSection />

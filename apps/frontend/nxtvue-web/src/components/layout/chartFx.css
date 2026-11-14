@@ -1,0 +1,137 @@
+/* Charts page backdrop and chrome.
+   Dark mode is the warm variant of the light palette ("Lavender & Cream"): a warm plum-charcoal base lit by lavender, peach,
+   orange and rose light. Panels are warm graphite glass; the footer wordmark is a full-colour gradient. Light mode follows below. */
+
+/* ── Backdrop ───────────────────────────────────────────────────────────────── */
+.cxb { display: block; position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.dark .cxb { display: block; background: linear-gradient(165deg, #2a1d2c 0%, #1e1522 40%, #160f19 74%, #100a12 100%); }
+.cxb-l { position: absolute; will-change: transform; }
+.cxb-l i { display: block; width: 100%; height: 100%; border-radius: 50%; animation: cxb-drift 30s ease-in-out infinite alternate; }
+/* lavender, top left */
+.cxb-a { top: -26vh; left: -16vw; width: 74vw; height: 74vw; }
+.cxb-a i { background: radial-gradient(closest-side, rgba(176, 140, 255, .40), rgba(176, 140, 255, .12) 55%, transparent); }
+/* peach-orange, top right */
+.cxb-b { top: -6vh; right: -20vw; width: 58vw; height: 58vw; }
+.cxb-b i { background: radial-gradient(closest-side, rgba(255, 150, 90, .30), rgba(255, 150, 90, .08) 55%, transparent); animation-duration: 36s; animation-delay: -10s; }
+/* rose, bottom right */
+.cxb-c { bottom: -28vh; right: -4vw; width: 66vw; height: 66vw; }
+.cxb-c i { background: radial-gradient(closest-side, rgba(255, 115, 160, .28), rgba(255, 115, 160, .08) 55%, transparent); animation-duration: 33s; animation-delay: -5s; }
+/* burnt orange, bottom left */
+.cxb-d { bottom: -22vh; left: -6vw; width: 52vw; height: 52vw; }
+.cxb-d i { background: radial-gradient(closest-side, rgba(232, 100, 50, .28), rgba(240, 150, 90, .08) 55%, transparent); animation-duration: 40s; animation-delay: -16s; }
+/* a cream bloom behind the page header */
+.cxb-e { top: -30vh; left: 28vw; width: 50vw; height: 50vw; }
+.cxb-e i { background: radial-gradient(closest-side, rgba(255, 236, 214, .15), rgba(255, 236, 214, .05) 55%, transparent); animation-duration: 44s; animation-delay: -22s; }
+@keyframes cxb-drift { to { transform: translate3d(5vw, 3vh, 0) scale(1.1); } }
+
+/* Chart-paper grid, fading out toward the edges */
+.cxb-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(225, 205, 255, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(225, 205, 255, .045) 1px, transparent 1px);
+  background-size: 76px 76px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 32%, #000 10%, transparent 82%);
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 32%, #000 10%, transparent 82%);
+}
+/* A ghosted price line crossing the lower half of the screen */
+.cxb-line { position: absolute; left: 0; right: 0; bottom: 6vh; height: 52vh; opacity: .75; will-change: transform; }
+.cxb-line svg { display: block; width: 100%; height: 100%; }
+.cxb-vig { position: absolute; inset: 0; background: radial-gradient(125% 95% at 50% 38%, transparent 56%, rgba(8, 3, 12, .55) 100%); }
+.cxb-grain {
+  position: absolute; inset: 0; opacity: .07; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ── Page shell: the base colour shows before the lights paint ──────────────── */
+.dark .chart-shell { background: #1b121f; }
+.dark .chart-shell > main, .dark .chart-shell > footer { position: relative; z-index: 1; }
+html.dark:has(.nxc) { --page-bg: #1b121f; }
+
+/* Navbar: frosted plum-ink glass over the backdrop (the logo keeps its brand colours) */
+.dark .chart-shell header[role="banner"] > div.relative {
+  background: linear-gradient(180deg, rgba(36, 26, 42, .74), rgba(24, 16, 30, .5));
+  border-bottom-color: rgba(220, 200, 255, .14);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+}
+.dark .chart-shell .nx-hair { background: linear-gradient(90deg, transparent, #a78bfa, #f08a4b, #e9c46a, transparent); opacity: .65; }
+.dark .chart-shell header[role="banner"] [class*="border-[#2de2c4]"] { border-color: #e9c46a; }
+
+/* ── Footer ────────────────────────────────────────────────────────────────────
+   Text in cream instead of grey; headings in peach; the wordmark is a full-colour gradient. */
+.dark .chart-shell .sf {
+  --sf-ink: #fff7ee;
+  --sf-mute: #ffeedd;
+  --sf-acc: #ffb98a;
+  --sf-line: rgba(255, 220, 190, .2);
+}
+.dark .chart-shell .sf-grid p { color: #fff7ee; font-size: 15px; line-height: 1.7; text-shadow: 0 1px 12px rgba(0, 0, 0, .55); }
+.dark .chart-shell .sf h5 { color: #ffb98a; text-shadow: 0 1px 10px rgba(0, 0, 0, .5); letter-spacing: .18em; }
+.dark .chart-shell .sf-grid a { color: #ffeedd; font-weight: 500; text-shadow: 0 1px 10px rgba(0, 0, 0, .55); }
+.dark .chart-shell .sf-grid a:hover { color: #fff; }
+.dark .chart-shell .sf-bot { color: #f8e8d8; text-shadow: 0 1px 10px rgba(0, 0, 0, .5); }
+.dark .chart-shell .sf-st { color: #b8f7da; }
+.dark .chart-shell .sf-top {
+  border: 1px solid rgba(242, 200, 121, .5); color: #fff3cf;
+  background: linear-gradient(180deg, rgba(242, 200, 121, .14), rgba(242, 200, 121, .04));
+}
+.dark .chart-shell .sf-top:hover { border-color: #f2c879; color: #fff; box-shadow: 0 8px 24px -10px rgba(242, 200, 121, .7); }
+.dark .chart-shell .sf::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(176, 140, 255, .6), rgba(255, 150, 90, .6), transparent);
+}
+
+/* ── Light mode: "Lavender & Cream" (the motionsites palette: lavender, cream, orange) ──
+   A warm ivory page lit by soft lavender, peach, orange and rose pools, with frosted white glass panels. */
+html:not(.dark) .cxb { background: linear-gradient(165deg, #fdf8f1 0%, #f8f0ee 40%, #f1ecf8 74%, #fbf1e6 100%); }
+html:not(.dark) .cxb-a i { background: radial-gradient(closest-side, rgba(176, 140, 255, .42), rgba(176, 140, 255, .12) 55%, transparent); }
+html:not(.dark) .cxb-b i { background: radial-gradient(closest-side, rgba(255, 176, 120, .42), rgba(255, 176, 120, .11) 55%, transparent); }
+html:not(.dark) .cxb-c i { background: radial-gradient(closest-side, rgba(255, 150, 175, .3), rgba(255, 150, 175, .08) 55%, transparent); }
+html:not(.dark) .cxb-d i { background: radial-gradient(closest-side, rgba(232, 100, 50, .22), rgba(240, 150, 90, .07) 55%, transparent); }
+html:not(.dark) .cxb-e i { background: radial-gradient(closest-side, rgba(255, 255, 255, .9), rgba(255, 255, 255, .3) 55%, transparent); }
+html:not(.dark) .cxb-grid {
+  background-image: linear-gradient(rgba(110, 80, 170, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(110, 80, 170, .06) 1px, transparent 1px);
+}
+html:not(.dark) .cxb-line { opacity: .55; }
+html:not(.dark) .cxb-line stop:nth-child(1) { stop-color: #a78bfa; }
+html:not(.dark) .cxb-line stop:nth-child(2) { stop-color: #b08cff; }
+html:not(.dark) .cxb-line stop:nth-child(3) { stop-color: #f08a4b; }
+html:not(.dark) .cxb-vig { background: radial-gradient(125% 95% at 50% 38%, transparent 56%, rgba(130, 90, 160, .12) 100%); }
+html:not(.dark) .cxb-grain { opacity: .05; mix-blend-mode: multiply; }
+
+html:not(.dark) .chart-shell { background: #f9f2ec; }
+html:not(.dark) .chart-shell > main, html:not(.dark) .chart-shell > footer { position: relative; z-index: 1; }
+html:not(.dark):has(.nxc) { --page-bg: #f9f2ec; }
+
+/* Navbar: frosted white glass with a lavender-to-orange hairline */
+html:not(.dark) .chart-shell header[role="banner"] > div.relative {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(253, 246, 240, .56));
+  border-bottom-color: rgba(140, 100, 200, .16);
+  -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+}
+html:not(.dark) .chart-shell .nx-hair { display: block; background: linear-gradient(90deg, transparent, #a78bfa, #f08a4b, #e8a93a, transparent); opacity: .6; }
+
+/* Footer: deep plum-ink text, burnt-orange headings, a full-colour lavender-to-orange wordmark */
+html:not(.dark) .chart-shell .sf {
+  --sf-ink: #1b1630;
+  --sf-mute: #4a4160;
+  --sf-acc: #8a5cf0;
+  --sf-line: rgba(140, 100, 200, .22);
+}
+html:not(.dark) .chart-shell .sf-grid p { color: #3e3556; font-size: 15px; line-height: 1.7; }
+html:not(.dark) .chart-shell .sf h5 { color: #b0511b; letter-spacing: .18em; }
+html:not(.dark) .chart-shell .sf-grid a { color: #3e3556; font-weight: 500; }
+html:not(.dark) .chart-shell .sf-grid a:hover { color: #7a4ae0; }
+html:not(.dark) .chart-shell .sf-bot { color: #54496c; }
+html:not(.dark) .chart-shell .sf-st { color: #0a7a47; }
+html:not(.dark) .chart-shell .sf-top {
+  border: 1px solid rgba(176, 128, 30, .55); color: #5e4410;
+  background: linear-gradient(180deg, rgba(240, 196, 90, .26), rgba(240, 196, 90, .08));
+}
+html:not(.dark) .chart-shell .sf-top:hover { border-color: #b0801e; color: #2f2206; box-shadow: 0 8px 22px -10px rgba(176, 128, 30, .6); }
+html:not(.dark) .chart-shell .sf::after {
+  content: ""; position: absolute; left: 8%; right: 8%; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(167, 139, 250, .6), rgba(240, 138, 75, .6), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cxb-l i { animation: none; }
+}

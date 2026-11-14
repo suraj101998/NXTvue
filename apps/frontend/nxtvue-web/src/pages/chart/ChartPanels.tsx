@@ -268,9 +268,9 @@ export function ChartPanel({ view, tf, onTf, layers, onLayer, hi, lo, fmt, statu
             <div className="r2">
               {(
                 [
-                  ['SMA 20', 's20', '#5b8cff'],
-                  ['SMA 50', 's50', '#ffa94d'],
-                  ['SMA 200', 's200', '#c084fc'],
+                  ['SMA 20', 's20', 'var(--s20)'],
+                  ['SMA 50', 's50', 'var(--s50)'],
+                  ['SMA 200', 's200', 'var(--s200)'],
                 ] as const
               ).map(([l, k, c]) => (
                 <span key={k}>
@@ -580,9 +580,9 @@ export function MaMatrix({ A, fmt }: { A: Pack; fmt: Fmt }) {
   const c = A.a[n - 1].c
   const rows = (
     [
-      ['SMA 20', 's20', '#5b8cff'],
-      ['SMA 50', 's50', '#ffa94d'],
-      ['SMA 200', 's200', '#c084fc'],
+      ['SMA 20', 's20', 'var(--s20)'],
+      ['SMA 50', 's50', 'var(--s50)'],
+      ['SMA 200', 's200', 'var(--s200)'],
     ] as const
   ).map(([label, k, color]) => {
     const v = A[k][n - 1]

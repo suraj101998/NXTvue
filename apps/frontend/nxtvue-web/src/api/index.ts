@@ -49,8 +49,6 @@ export {
   type PortfolioResponse,
   type WatchlistItem,
   type WatchlistResponse,
-  type AnalysisHistoryItem,
-  type AnalysisHistoryResponse,
   type PortfolioIntelligenceResponse,
   type SearchResultItem,
   type SearchResponse,
@@ -72,7 +70,6 @@ export {
   fetchWatchlist,
   addToWatchlist,
   removeFromWatchlist,
-  fetchAnalysisHistory,
   searchTickers,
 } from './client'
 

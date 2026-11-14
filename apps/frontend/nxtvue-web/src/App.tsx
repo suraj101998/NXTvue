@@ -6,7 +6,6 @@ import { AppShell } from '@/components/layout/AppShell'
 import { LoginPage } from '@/pages/login/LoginPage'
 import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { AnalysisPage } from '@/pages/analysis/AnalysisPage'
-import { AnalysisHistoryPage } from '@/pages/analysis/AnalysisHistoryPage'
 import { PortfolioPage } from '@/pages/portfolio/PortfolioPage'
 import { ChartPage } from '@/pages/chart/ChartPage'
 import { PricingPage } from '@/pages/pricing/PricingPage'
@@ -51,16 +50,6 @@ function App() {
                 <ProtectedRoute>
                   <AppShell>
                     <AnalysisPage />
-                  </AppShell>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analysis/history"
-              element={
-                <ProtectedRoute>
-                  <AppShell>
-                    <AnalysisHistoryPage />
                   </AppShell>
                 </ProtectedRoute>
               }

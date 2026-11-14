@@ -20,7 +20,7 @@ import { chartPath, normalizeMarket, resolveSymbol } from '@/utils/resolveSymbol
 import { TFS, type TF } from './chartMath'
 import { LAYER_DEFS, type LayerKey, type Layers } from './chartSvg'
 import { EXCHANGE, currencySign, exchangeLabel, localeFor, makeFmt } from './chartFormat'
-import { ChartFooter, ChartTopbar } from './ChartTopbar'
+import { useTheme } from '@/hooks/useTheme'
 import { ChartPanel, Kpis, MaMatrix, ObScanner, PriceBlock, SideRail, VolumeProfilePanel, type Snap } from './ChartPanels'
 import { CongressPanel, DisclosuresPanel, EarningsPanel, EntryPanel, NewsPanel, PlanPanel, SetupsPanel, TimeMachinePanel } from './DeskPanels'
 import { IndiaFundamentalsPanels, UsFundamentalsPanels } from './Fundamentals'
@@ -28,7 +28,6 @@ import { useDebounced, usePack } from './useChartData'
 import './chart.css'
 
 const DEFAULT_SYMBOL = { india: 'RELIANCE', us: 'NVDA' } as const
-const THEME_KEY = 'nxtvue_chart_theme'
 const CAPITAL_KEY = 'nxtvue_chart_capital'
 const RISK_KEY = 'nxtvue_chart_risk'
 const ALL_ON = Object.fromEntries(LAYER_DEFS.map((l) => [l.key, true])) as Layers
@@ -53,13 +52,7 @@ export function ChartPage() {
   const sym = h?.symbol ?? resolved.symbol
   const mkt = h?.market ?? 'us'
 
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => (localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'))
-  const toggleTheme = () =>
-    setTheme((t) => {
-      const next = t === 'dark' ? 'light' : 'dark'
-      localStorage.setItem(THEME_KEY, next)
-      return next
-    })
+  const { theme } = useTheme()
 
   const [tf, setTf] = useState<TF>('6M')
   const [layers, setLayers] = useState<Layers>(ALL_ON)
@@ -128,7 +121,6 @@ export function ChartPage() {
   const cur = quote.data?.currency ?? (isIndia ? 'INR' : 'USD')
   const fmt = useMemo(() => ({ cu: currencySign(cur), F: makeFmt(localeFor(cur)), loc: localeFor(cur) }), [cur])
 
-  const analysisPath = `/analysis/${encodeURIComponent(resolved.symbol)}?market=${isUs ? 'us' : 'india'}`
   const switchMarket = (next: 'india' | 'us') => {
     if (next !== tab || resolved.market === 'global') navigate(chartPath(DEFAULT_SYMBOL[next], next))
   }
@@ -150,7 +142,6 @@ export function ChartPage() {
 
   return (
     <div className="nxc" data-theme={theme}>
-      <ChartTopbar theme={theme} onTheme={toggleTheme} />
       <div className="mainw" id="top">
         <div className="tick" aria-label="Market tape">
           <div className="tk">
@@ -201,11 +192,6 @@ export function ChartPage() {
                 ))}
               </div>
               <SymbolForm key={activeSymbol} initial={activeSymbol} market={tab} />
-              {resolved.market !== 'global' && (
-                <button type="button" className="btn ai" onClick={() => navigate(analysisPath)}>
-                  ✦ AI research memo
-                </button>
-              )}
             </div>
           </div>
           {snap ? (
@@ -298,7 +284,6 @@ export function ChartPage() {
           </>
         )}
       </div>
-      <ChartFooter />
     </div>
   )
 }

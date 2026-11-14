@@ -1,40 +1,16 @@
-import { useRef, useState } from 'react'
-import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
-import { useIndices, type IndexQuote } from '@/hooks/useIndices'
-import { TvWidget } from '@/components/charts/TvWidget'
-import { IndiaHeatmap } from '@/components/dashboard/IndiaHeatmap'
-import { HEATMAP_INDEX_BY_NAME } from '@/api/india'
+import { useRef, useState, type ReactNode } from 'react'
+import { RefreshButton } from '@/components/layout/PageActions'
+import { Reveal } from '@/components/motion/Reveal'
+import { useIndices } from '@/hooks/useIndices'
+import { usePolled } from '@/hooks/usePolled'
+import { fetchIndiaHeatmap, fetchIndiaPulse, SECTOR_HEATMAP, type IndiaPulse } from '@/api/india'
+import { fetchUsHeatmap, fetchUsPulse, type UsPulse } from '@/api/us'
+import { StockHeatmap } from '@/components/dashboard/StockHeatmap'
+import { IndiaPulsePanel, UsPulsePanel } from '@/components/dashboard/PulsePanels'
 
-interface HeatmapSource {
-  /** TradingView heatmap `data-source` value. */
-  source: string
-  /** Shown when the heatmap is only the closest available match, not the index itself. */
-  note?: string
-}
+type Market = 'india' | 'us'
 
-// TradingView's stock heatmap only offers a fixed list of data sources. There is no NIFTY source,
-// no sector-index filter, and no NSE exchange filter. Indian indices we can build ourselves
-// (HEATMAP_INDEX_BY_NAME) use our own live heatmap; the rest fall back to the BSE Sensex.
-const INDIA_FALLBACK_NOTE =
-  'No live constituent data for this index. This shows the 30 BSE Sensex stocks grouped by sector, the closest India data available.'
-
-const HEATMAP_SOURCES: Record<'india' | 'us', Record<string, HeatmapSource>> = {
-  india: {
-    SENSEX: { source: 'SENSEX' },
-  },
-  us: {
-    'S&P 500': { source: 'SPX500' },
-    NASDAQ: { source: 'NASDAQCOMPOSITE' },
-    'DOW JONES': { source: 'DJDJI' },
-    'RUSSELL 2000': { source: 'TVCRUT' },
-    'NASDAQ 100': { source: 'NASDAQ100' },
-    VIX: { source: 'SPX500', note: 'The VIX is a volatility index with no constituent stocks. This shows the S&P 500 it is derived from.' },
-  },
-}
-
-function heatmapFor(market: 'india' | 'us', name: string): HeatmapSource {
-  return HEATMAP_SOURCES[market][name] ?? (market === 'india' ? { source: 'SENSEX', note: INDIA_FALLBACK_NOTE } : { source: 'SPX500' })
-}
+const PULSE_REFRESH_MS = 60_000
 
 // Rich SVG Flag for India
 export const IndiaFlagIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
@@ -67,306 +43,154 @@ export const USFlagIcon = ({ className = 'w-6 h-6' }: { className?: string }) =>
   </svg>
 )
 
+interface OpenSector {
+  market: Market
+  key: string
+  label: string
+}
+
 export function MarketOverviewSection() {
-  const { data, loading, refresh, lastFetched } = useIndices()
-  const [selectedMarket, setSelectedMarket] = useState<'india' | 'us'>('india')
-  const [activeIndex, setActiveIndex] = useState<{ market: 'india' | 'us'; name: string } | null>(null)
+  const { data: indices, refresh: refreshIndices } = useIndices()
+  const [market, setMarket] = useState<Market>('india')
+  const [openSector, setOpenSector] = useState<OpenSector | null>(null)
+  const [heatmapReload, setHeatmapReload] = useState(0)
   const heatmapRef = useRef<HTMLDivElement>(null)
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'broad' | 'sector' | 'volatility'>('all')
 
-  const indicesList: IndexQuote[] = (data ? (selectedMarket === 'india' ? data.india : data.us) : []) || []
+  // Only the market on screen is polled. The US snapshot is heavy, so it stays idle until picked.
+  const india = usePolled<IndiaPulse>(market === 'india' ? 'india-pulse' : null, fetchIndiaPulse, PULSE_REFRESH_MS)
+  const us = usePolled<UsPulse>(market === 'us' ? 'us-pulse' : null, fetchUsPulse, PULSE_REFRESH_MS)
+  const pulse = market === 'india' ? india : us
 
-  const getIndexType = (name: string): 'broad' | 'sector' | 'volatility' => {
-    const upper = name.toUpperCase()
-    if (upper.includes('VIX') || upper.includes('VOLATILITY')) return 'volatility'
-    if (
-      upper.includes('BANK') ||
-      upper.includes('IT') ||
-      upper.includes('PHARMA') ||
-      upper.includes('AUTO') ||
-      upper.includes('FMCG') ||
-      upper.includes('METAL') ||
-      upper.includes('ENERGY') ||
-      upper.includes('FINANCIAL') ||
-      upper.includes('MEDIA') ||
-      upper.includes('REALTY') ||
-      upper.includes('TECH') ||
-      upper.includes('HEALTH')
-    ) {
-      return 'sector'
-    }
-    return 'broad'
+  const status = market === 'india' ? india.data?.status?.status : us.data?.status?.status
+  const open = status === 'Open'
+  const stale = pulse.data?.stale || (pulse.error !== null && pulse.data !== null)
+  const benchmarks = (indices ? indices[market] : []).filter((i) => i.type === 'broad')
+
+  const switchMarket = (next: Market) => {
+    if (next === market) return
+    setMarket(next)
+    setOpenSector(null)
   }
 
-  const filteredIndices = indicesList.filter((item) => {
-    const itemType = getIndexType(item.name)
-    if (categoryFilter === 'all') return true
-    if (categoryFilter === 'broad') return itemType === 'broad'
-    if (categoryFilter === 'sector') return itemType === 'sector'
-    if (categoryFilter === 'volatility') return itemType === 'volatility'
-    return true
-  })
-
-  const formatNumber = (num: number) => {
-    return num.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
+  const refreshAll = () => {
+    pulse.refresh()
+    refreshIndices()
+    setHeatmapReload((n) => n + 1)
   }
 
-  // Analyze renders the heatmap inline on this page; clicking the same card again closes it.
-  const handleIndexClick = (indexName: string) => {
-    const same = activeIndex?.market === selectedMarket && activeIndex.name === indexName
-    setActiveIndex(same ? null : { market: selectedMarket, name: indexName })
+  // Clicking the open sector again closes its heatmap.
+  const pickSector = (key: string, label: string) => {
+    const same = openSector?.market === market && openSector.key === key
+    setOpenSector(same ? null : { market, key, label })
     if (!same) requestAnimationFrame(() => heatmapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
   }
 
-  const ownIndiaIndex = activeIndex?.market === 'india' ? HEATMAP_INDEX_BY_NAME[activeIndex.name] : undefined
-  const heatmap = activeIndex && !ownIndiaIndex ? heatmapFor(activeIndex.market, activeIndex.name) : null
+  const activeKey = openSector?.market === market ? openSector.key : null
+  const tab = (id: Market, flag: ReactNode, label: string) => (
+    <button
+      type="button"
+      onClick={() => switchMarket(id)}
+      aria-pressed={market === id}
+      className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
+        market === id ? 'bg-black text-white dark:bg-white dark:text-[#0b1030] shadow-[0_6px_18px_-6px_rgba(99,102,241,.7)]' : 'text-black/70 hover:text-black dark:text-[#98a2c8] dark:hover:text-white'
+      }`}
+    >
+      {flag}
+      <span>{label}</span>
+    </button>
+  )
 
   return (
-    <section className="bg-[#F5F5F5] px-6 py-24" id="market-overview">
+    <section className="bg-transparent px-6 py-28" id="market-overview" aria-labelledby="market-overview-title">
       <div className="max-w-[88rem] mx-auto">
-        {/* Top Header & Market Selectors */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 text-black/70 text-xs font-semibold uppercase tracking-wider mb-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Market Data Feed
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10">
+          <Reveal>
+            <div className="dx-eyebrow">
+              <i className={open ? 'on' : ''} />
+              {status ? `${market === 'india' ? 'NSE' : 'US'} market ${status.toLowerCase()}` : 'Live Market Data Feed'}
             </div>
-            <h2
-              className="text-4xl md:text-5xl lg:text-6xl font-medium leading-none text-black tracking-tight mb-4"
-              style={{ letterSpacing: '-0.04em' }}
-            >
-              Market Overview
+            <h2 id="market-overview-title" className="dx-h2">
+              Market <em>Overview</em>
             </h2>
-            <p className="text-black/70 text-base md:text-lg max-w-xl leading-relaxed">
-              Real-time institutional indices across Indian & US capital markets including NIFTY 50, Sensex, NIFTY Bank, NIFTY Pharma, S&P 500, and Russell 2000.
+            <p className="dx-lead">
+              {market === 'india'
+                ? 'India VIX, breadth, movers, FII/DII flows and sectors from NSE. Pick a sector to see its stocks.'
+                : 'VIX, S&P 500 breadth, movers, rates and sectors from Yahoo Finance. Pick a sector to see its stocks.'}
             </p>
-          </div>
+          </Reveal>
 
-          {/* Action and Market Switchers */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            {/* Country Selector Tabs */}
-            <div className="flex bg-black/5 p-1.5 rounded-full border border-black/5 shadow-inner">
-              <button
-                onClick={() => setSelectedMarket('india')}
-                className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
-                  selectedMarket === 'india'
-                    ? 'bg-black text-white shadow-md'
-                    : 'text-black/70 hover:text-black'
-                }`}
-              >
-                <IndiaFlagIcon className="w-5 h-3.5 shadow-sm rounded-sm" />
-                <span>India (NSE & BSE)</span>
-                {data?.india && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    selectedMarket === 'india' ? 'bg-white/20 text-white' : 'bg-black/10 text-black/70'
-                  }`}>
-                    {data.india.length}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setSelectedMarket('us')}
-                className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${
-                  selectedMarket === 'us'
-                    ? 'bg-black text-white shadow-md'
-                    : 'text-black/70 hover:text-black'
-                }`}
-              >
-                <USFlagIcon className="w-5 h-3.5 shadow-sm rounded-sm" />
-                <span>US (NYSE & NASDAQ)</span>
-                {data?.us && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    selectedMarket === 'us' ? 'bg-white/20 text-white' : 'bg-black/10 text-black/70'
-                  }`}>
-                    {data.us.length}
-                  </span>
-                )}
-              </button>
+          <Reveal delay={120} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <div className="dx-seg">
+              {tab('india', <IndiaFlagIcon className="w-5 h-3.5 shadow-sm rounded-sm" />, 'India (NSE & BSE)')}
+              {tab('us', <USFlagIcon className="w-5 h-3.5 shadow-sm rounded-sm" />, 'US (NYSE & NASDAQ)')}
             </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={() => refresh()}
-              disabled={loading}
-              title="Refresh live quotes"
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-white border border-black/10 text-black text-sm font-medium hover:bg-black hover:text-white transition-colors duration-200 shadow-sm cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-          </div>
+            <RefreshButton onClick={refreshAll} loading={pulse.loading} title="Refresh market data" />
+          </Reveal>
         </div>
 
-        {/* Sub-Filters: Broad, Sectors, Volatility */}
-        <div className="flex items-center justify-between border-b border-black/10 pb-4 mb-8 overflow-x-auto gap-4">
-          <div className="flex items-center gap-2">
-            {[
-              { id: 'all', label: 'All Indices' },
-              { id: 'broad', label: 'Broad Benchmarks' },
-              { id: 'sector', label: 'Sector Indices' },
-              { id: 'volatility', label: 'Volatility' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setCategoryFilter(tab.id as any)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                  categoryFilter === tab.id
-                    ? 'bg-black text-white'
-                    : 'bg-transparent text-black/60 hover:text-black hover:bg-black/5'
-                }`}
-              >
-                {tab.label}
-              </button>
+        {/* Broad benchmarks only. Sector indices live in "Sectors today" below. */}
+        {benchmarks.length > 0 && (
+          <ul className="mb-6 flex flex-wrap gap-3" aria-label="Benchmark indices">
+            {benchmarks.map((b) => (
+              <li key={b.name} className="dx-chip">
+                <span className="font-semibold text-black dark:text-white">{b.name}</span>
+                <span className="font-mono tabular-nums text-black/70 dark:text-white/70">
+                  {b.value.toLocaleString(market === 'india' ? 'en-IN' : 'en-US', { maximumFractionDigits: 2 })}
+                </span>
+                <span className={`font-bold tabular-nums ${b.positive ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+                  {b.positive ? '+' : ''}
+                  {b.changePct.toFixed(2)}%
+                </span>
+              </li>
             ))}
-          </div>
+          </ul>
+        )}
 
-          <div className="text-xs text-black/65 font-medium whitespace-nowrap">
-            {lastFetched ? `Updated ${lastFetched.toLocaleTimeString()}` : 'Live streaming'}
-          </div>
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-black/55 dark:text-[#8793c0]">
+          {pulse.updatedAt && (
+            <span>
+              {stale ? 'Last good data, ' : ''}updated {pulse.updatedAt.toLocaleTimeString()}
+            </span>
+          )}
+          {status && !open && <span>Market is closed, figures are from the last session.</span>}
         </div>
 
-        {/* Inline sector heatmap, opened by "Analyze" on an index card */}
-        {activeIndex && (heatmap || ownIndiaIndex) && (
-          <div ref={heatmapRef} className="mb-8 rounded-3xl bg-white border border-black/10 shadow-sm overflow-hidden" aria-label={`${activeIndex.name} heatmap`}>
+        {market === 'india' ? (
+          <IndiaPulsePanel pulse={india} activeSector={activeKey} onPickSector={pickSector} />
+        ) : (
+          <UsPulsePanel pulse={us} activeSector={activeKey} onPickSector={pickSector} />
+        )}
+
+        {openSector && openSector.market === market && (
+          <div ref={heatmapRef} className="dx-card dx-glass flush mt-8" aria-label={`${openSector.label} heatmap`}>
             <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-black/70">{activeIndex.name} heatmap</h3>
-                {heatmap?.note && <p className="mt-1 text-xs text-black/60 max-w-3xl">{heatmap.note}</p>}
-              </div>
+              <h3 className="dx-title !mb-0">
+                {market === 'india' ? 'NIFTY' : 'S&P 500'} {openSector.label} heatmap
+              </h3>
               <button
                 type="button"
-                onClick={() => setActiveIndex(null)}
-                className="shrink-0 px-3 py-1.5 rounded-full border border-black/10 text-xs font-semibold text-black hover:bg-black hover:text-white transition-colors cursor-pointer"
+                onClick={() => setOpenSector(null)}
+                className="shrink-0 px-3 py-1.5 rounded-full border border-black/10 dark:border-white/20 text-xs font-semibold text-black dark:text-white dx-btn hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black cursor-pointer"
               >
                 Close
               </button>
             </div>
-            {ownIndiaIndex ? (
-              <IndiaHeatmap key={ownIndiaIndex} index={ownIndiaIndex} label={activeIndex.name} height={560} />
+            {market === 'india' ? (
+              <StockHeatmap
+                id={`india:${openSector.key}`}
+                label={openSector.label}
+                load={(signal) => fetchIndiaHeatmap(SECTOR_HEATMAP[openSector.key], signal)}
+                refreshSignal={heatmapReload}
+              />
             ) : (
-              heatmap && (
-                <TvWidget
-                  key={`${activeIndex.market}:${heatmap.source}`}
-                  widget="heatmap"
-                  theme="light"
-                  height={560}
-                  options={{
-                    'heatmap-type': 'stock',
-                    'data-source': heatmap.source,
-                    grouping: 'sector',
-                    'block-size': 'market_cap_basic',
-                    'block-color': 'change',
-                    exchanges: '',
-                  }}
-                />
-              )
+              <StockHeatmap
+                id={`us:${openSector.key}`}
+                label={openSector.label}
+                currency={{ symbol: '$', locale: 'en-US' }}
+                load={(signal) => fetchUsHeatmap(openSector.key, signal)}
+                refreshSignal={heatmapReload}
+              />
             )}
-          </div>
-        )}
-
-        {/* Indices Grid */}
-        {loading && filteredIndices.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 h-40 animate-pulse border border-black/5 flex flex-col justify-between">
-                <div className="flex justify-between">
-                  <div className="h-4 bg-black/10 rounded w-24" />
-                  <div className="h-4 bg-black/10 rounded w-12" />
-                </div>
-                <div className="h-8 bg-black/10 rounded w-32" />
-                <div className="h-4 bg-black/10 rounded w-20" />
-              </div>
-            ))}
-          </div>
-        ) : filteredIndices.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-black/10">
-            <p className="text-black font-semibold text-lg">No indices in this category</p>
-            <p className="text-black/60 text-sm mt-1">Select "All Indices" to view all available market feeds.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredIndices.map((item) => {
-              const isPositive = item.positive ?? item.change >= 0
-              const isNeutral = item.change === 0
-
-              return (
-                <div
-                  key={item.name}
-                  onClick={() => handleIndexClick(item.name)}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={activeIndex?.market === selectedMarket && activeIndex.name === item.name}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      handleIndexClick(item.name)
-                    }
-                  }}
-                  className={`bg-white rounded-2xl p-6 border hover:border-black/20 hover:shadow-xl transition-all duration-300 flex flex-col justify-between cursor-pointer group relative overflow-hidden ${
-                    activeIndex?.market === selectedMarket && activeIndex.name === item.name ? 'border-black ring-1 ring-black' : 'border-black/5'
-                  }`}
-                >
-                  {/* Subtle top indicator bar */}
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-1 transition-colors ${
-                      isPositive ? 'bg-emerald-500' : isNeutral ? 'bg-neutral-300' : 'bg-red-500'
-                    }`}
-                  />
-
-                  {/* Header Row */}
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-black/60 block mb-0.5">
-                        {item.source} • {getIndexType(item.name)}
-                      </span>
-                      <h3 className="text-black font-semibold text-base group-hover:text-black tracking-tight">
-                        {item.name}
-                      </h3>
-                    </div>
-
-                    <div
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                        isPositive
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : isNeutral
-                          ? 'bg-neutral-100 text-neutral-700'
-                          : 'bg-red-50 text-red-700'
-                      }`}
-                    >
-                      {isPositive ? (
-                        <TrendingUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <TrendingDown className="w-3.5 h-3.5" />
-                      )}
-                      <span>
-                        {isPositive ? '+' : ''}
-                        {item.changePct.toFixed(2)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Value and Change row */}
-                  <div>
-                    <div className="text-2xl font-semibold text-black tracking-tight mb-1 font-mono">
-                      {formatNumber(item.value)}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-black/60 font-medium">
-                      <span>
-                        {isPositive ? '+' : ''}
-                        {formatNumber(item.change)} pts
-                      </span>
-                      <span className="text-black/60 group-hover:text-black group-hover:translate-x-0.5 transition-all flex items-center gap-1 font-semibold">
-                        Analyze
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
           </div>
         )}
       </div>

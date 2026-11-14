@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchIndiaHeatmap, type HeatmapIndex, type IndiaStock } from '@/api/india'
+import type { IndiaHeatmap, IndiaStock } from '@/api/india'
 import { usePolled } from '@/hooks/usePolled'
+import { useTheme } from '@/hooks/useTheme'
 import { squarify, tileColor } from '@/utils/treemap'
 
 const REFRESH_MS = 30_000
@@ -12,18 +13,48 @@ function fitLabel(text: string, maxPx: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`
 }
 
-interface Props {
-  index: HeatmapIndex
-  label: string
-  height?: number
+/** Company logo on a white disc. If the image fails to load the disc is dropped, not left empty. */
+function TileLogo({ src, cx, cy, size }: { src: string; cx: number; cy: number; size: number }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) return null
+  const r = size / 2
+  const pad = Math.max(2, size * 0.14)
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={r} fill="#fff" />
+      <image
+        href={src}
+        x={cx - r + pad}
+        y={cy - r + pad}
+        width={size - pad * 2}
+        height={size - pad * 2}
+        preserveAspectRatio="xMidYMid meet"
+        onError={() => setFailed(true)}
+      />
+    </g>
+  )
 }
 
-export function IndiaHeatmap({ index, label, height = 560 }: Props) {
-  const { data, loading, error, updatedAt } = usePolled(
-    `heatmap:${index}`,
-    (signal) => fetchIndiaHeatmap(index, signal),
-    REFRESH_MS,
-  )
+interface Props {
+  /** Changing the id discards the old data and loads the new heatmap. */
+  id: string
+  load: (signal: AbortSignal) => Promise<IndiaHeatmap>
+  label: string
+  /** Price prefix and number locale of the market. */
+  currency?: { symbol: string; locale: string }
+  height?: number
+  /** Bump this number to reload now instead of waiting for the next poll. */
+  refreshSignal?: number
+}
+
+const INR = { symbol: '₹', locale: 'en-IN' }
+
+export function StockHeatmap({ id, load, label, currency = INR, height = 560, refreshSignal = 0 }: Props) {
+  const dark = useTheme().theme === 'dark'
+  const { data, loading, error, updatedAt, refresh } = usePolled(`heatmap:${id}`, load, REFRESH_MS)
+  useEffect(() => {
+    if (refreshSignal) refresh()
+  }, [refreshSignal, refresh])
 
   // Lay tiles out at the real pixel size so text is never stretched by SVG scaling.
   const boxRef = useRef<HTMLDivElement>(null)
@@ -70,14 +101,14 @@ export function IndiaHeatmap({ index, label, height = 560 }: Props) {
 
   if (loading) {
     return (
-      <div role="status" className="flex items-center justify-center text-sm text-black/60" style={{ height }}>
+      <div role="status" className="flex items-center justify-center text-sm text-black/60 dark:text-white/60" style={{ height }}>
         Loading {label} heatmap…
       </div>
     )
   }
   if (!data) {
     return (
-      <div role="alert" className="flex items-center justify-center px-6 text-center text-sm text-red-700" style={{ height }}>
+      <div role="alert" className="flex items-center justify-center px-6 text-center text-sm text-red-700 dark:text-red-400" style={{ height }}>
         {label} heatmap is unavailable right now{error ? `: ${error}` : ''}.
       </div>
     )
@@ -100,21 +131,32 @@ export function IndiaHeatmap({ index, label, height = 560 }: Props) {
                 const s = t.item
                 const showName = t.w > 52 && t.h > 26
                 const showPct = t.w > 52 && t.h > 44
+                // Shrink the ticker to fit the tile width (bold caps average ~0.68em per character).
+                const nameSize = Math.max(8, Math.min(18, t.w / 7, (t.w - 8) / (s.symbol.length * 0.68)))
+                // The logo goes above the ticker when the tile is big enough to hold all three lines.
+                const logoSize = s.logo && showPct && t.w > 56 && t.h > 78 ? Math.min(36, t.w * 0.34, t.h * 0.3) : 0
+                const pctSize = Math.max(9, Math.min(14, t.w / 9))
+                const gap = logoSize ? 6 : 0
+                const stack = logoSize + gap + nameSize + (showPct ? pctSize + 4 : 0)
+                const top = (t.h - stack) / 2
+                const nameY = top + logoSize + gap + nameSize * 0.85
+                const pctY = nameY + pctSize + 4
                 return (
                   <g key={s.symbol} transform={`translate(${t.x},${t.y})`}>
                     <title>
-                      {`${s.name ?? s.symbol} (${s.symbol})\n₹${s.price.toLocaleString('en-IN')}  ${
+                      {`${s.name ?? s.symbol} (${s.symbol})\n${currency.symbol}${s.price.toLocaleString(currency.locale)}  ${
                         s.changePct === null ? '' : `${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`
                       }\n${s.sector ?? ''}`}
                     </title>
-                    <rect width={t.w} height={t.h} fill={tileColor(s.changePct)} stroke="#fff" strokeWidth={1.5} />
+                    <rect width={t.w} height={t.h} fill={tileColor(s.changePct)} stroke={dark ? '#0e1330' : '#fff'} strokeWidth={1.5} />
+                    {logoSize > 0 && s.logo && <TileLogo src={s.logo} cx={t.w / 2} cy={top + logoSize / 2} size={logoSize} />}
                     {showName && (
-                      <text x={t.w / 2} y={t.h / 2 - (showPct ? 4 : -4)} textAnchor="middle" fill="#fff" fontSize={Math.max(10, Math.min(18, t.w / 7))} fontWeight={700}>
-                        {s.symbol.length * 8 > t.w ? s.symbol.slice(0, Math.floor(t.w / 9)) : s.symbol}
+                      <text x={t.w / 2} y={showPct ? nameY : t.h / 2 + nameSize * 0.35} textAnchor="middle" fill="#fff" fontSize={nameSize} fontWeight={700}>
+                        {s.symbol}
                       </text>
                     )}
                     {showPct && s.changePct !== null && (
-                      <text x={t.w / 2} y={t.h / 2 + 14} textAnchor="middle" fill="#fff" fillOpacity={0.9} fontSize={Math.max(9, Math.min(14, t.w / 9))}>
+                      <text x={t.w / 2} y={pctY} textAnchor="middle" fill="#fff" fillOpacity={0.9} fontSize={pctSize}>
                         {s.changePct >= 0 ? '+' : ''}
                         {s.changePct.toFixed(2)}%
                       </text>
@@ -131,7 +173,7 @@ export function IndiaHeatmap({ index, label, height = 560 }: Props) {
           ))}
         </svg>
       </div>
-      <p className="px-6 py-3 text-xs text-black/60">
+      <p className="px-6 py-3 text-xs text-black/60 dark:text-white/60">
         {data.count} stocks · tile size is traded value today · colour is the day's change
         {data.stale || error ? ' · showing the last good data, refresh failed' : ''}
         {updatedAt ? ` · updated ${updatedAt.toLocaleTimeString()}` : ''}

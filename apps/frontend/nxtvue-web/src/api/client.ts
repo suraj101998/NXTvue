@@ -384,8 +384,6 @@ import {
   type PortfolioResponse,
   WatchlistResponseSchema,
   type WatchlistResponse,
-  AnalysisHistoryResponseSchema,
-  type AnalysisHistoryResponse,
   SearchResponseSchema,
   type SearchResponse,
 } from './validators'
@@ -414,12 +412,6 @@ export async function addToWatchlist(ticker: string, name?: string, market: stri
 
 export async function removeFromWatchlist(ticker: string): Promise<WatchlistResponse> {
   return apiPost(`/api/v1/portfolio/watchlist/${ticker}`, { _method: 'DELETE' }, (data) => WatchlistResponseSchema.parse(data))
-}
-
-export async function fetchAnalysisHistory(page: number = 1, pageSize: number = 10, analysisType?: string): Promise<AnalysisHistoryResponse> {
-  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
-  if (analysisType) params.append('analysis_type', analysisType)
-  return apiGet(`/api/v1/portfolio/analysis/history?${params.toString()}`, (data) => AnalysisHistoryResponseSchema.parse(data))
 }
 
 export async function searchTickers(query: string, limit: number = 10): Promise<SearchResponse> {

@@ -1,0 +1,133 @@
+/* Shared page chrome: navbar offset, Theme / Refresh buttons and the footer. */
+
+:root {
+  --nav-h: 56px;
+  /* One page background for every page, so the footer can simply continue it. */
+  --page-bg: #f4f6fa;
+  --nx-ink: #0f1424;
+  --nx-mute: #5b6680;
+  --nx-line: rgba(15, 20, 36, .1);
+  --logo-a: #00a88a;
+  --logo-b: #d97706;
+  /* motionsites.ai accent: lavender through cream to orange. */
+  --nx-hl: radial-gradient(80% 110% at 42% 38%, #d0b2ff 0%, #ffeed8 43%, #e8400d 88%);
+}
+.dark {
+  --page-bg: #0c0c0e;
+  --nx-ink: #f5f5f5;
+  --nx-mute: #8e8e98;
+  --nx-line: rgba(255, 255, 255, .09);
+  --logo-a: #2de2c4;
+  --logo-b: #ffb454;
+}
+html, body { background: var(--page-bg); }
+
+/* ── Logo (three slashes in the brand gradient, then the wordmark) ──── */
+.nx-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--nx-ink); }
+.nx-logo-mk { display: inline-flex; }
+.nx-logo-mk svg { width: 26px; height: 21px; }
+.nx-logo-wm { font: 600 17px/1 Geist, Inter, system-ui, sans-serif; letter-spacing: .09em; }
+
+/* Highlight word in a headline: the motionsites gradient. */
+.nx-hl { background: var(--nx-hl); -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent; font-style: italic; }
+
+@media (min-width: 1024px) { :root { --nav-h: 64px; } }
+
+/* In-page links (#verdict, #top...) must not land under the fixed navbar. */
+html { scroll-padding-top: calc(var(--nav-h) + 12px); }
+
+/* ── Theme and Refresh buttons (the Portfolio page look) ─────────────── */
+.pg-btn {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  background: #151517;
+  color: #f5f5f5;
+  font: 500 14px Geist, Inter, sans-serif;
+  cursor: pointer;
+  transition: transform .35s cubic-bezier(.2,.7,.2,1), border-color .35s, box-shadow .35s;
+}
+.pg-btn[data-theme="light"] { background: #fff; border-color: #d8dde8; color: #0f1424; box-shadow: 0 1px 2px #1a24401a; }
+.pg-btn:hover:not(:disabled) { border-color: #e8c068; transform: translateY(-2px); }
+.pg-btn svg { transition: transform .7s; }
+.pg-btn:hover:not(:disabled) svg { transform: rotate(360deg); }
+.pg-btn:disabled { cursor: default; }
+.pg-btn.compact { padding: 0; width: 40px; min-height: 40px; justify-content: center; }
+@keyframes pg-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pg-btn svg { animation: none !important; } }
+
+/* ── Footer: the same surface as the page, so it reads as the page continuing ── */
+.sf {
+  --sf-ink: var(--nx-ink); --sf-mute: var(--nx-mute); --sf-line: var(--nx-line); --sf-acc: #00a88a;
+  --sf-wm: linear-gradient(180deg, rgba(0,168,138,.34), rgba(217,119,6,.14) 55%, transparent 92%);
+  position: relative; z-index: 2; overflow: hidden;
+  background: transparent; color: var(--sf-mute); margin-top: 70px;
+  font: 400 14px/1.6 Geist, Inter, system-ui, sans-serif;
+}
+.sf[data-theme="dark"] {
+  --sf-acc: #2de2c4;
+  --sf-wm: linear-gradient(180deg, rgba(45,226,196,.45), rgba(255,180,84,.16) 55%, transparent 92%);
+}
+/* Faint dot grid that fades out toward the page above. */
+.sf::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(var(--sf-line) 1px, transparent 1px) 0 0 / 26px 26px;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 40%); mask-image: linear-gradient(180deg, transparent, #000 40%);
+}
+.sf-w { position: relative; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+.sf p { margin: 0; color: inherit; font-size: inherit; line-height: inherit; }
+.sf-grid { display: grid; grid-template-columns: 1.8fr 1fr 1fr 1fr; gap: 34px; padding: 54px 0 36px; }
+.sf-grid p { max-width: 300px; }
+.sf h5 { margin: 0 0 14px; font: 500 11px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--sf-acc); }
+.sf-grid a { display: block; padding: 4px 0; color: var(--sf-mute); text-decoration: none; transition: .2s; }
+.sf-grid a:hover { color: var(--sf-ink); transform: translateX(4px); }
+.sf-logo { display: inline-flex !important; margin-bottom: 14px; padding: 0 !important; }
+.sf-logo:hover { transform: none !important; }
+.sf-bot { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: center; padding: 20px 0; border-top: 1px solid var(--sf-line); font-size: 12px; }
+.sf-st { display: flex; align-items: center; gap: 8px; font: 500 11px 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.sf-st i { width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981; }
+.sf-top {
+  height: 38px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--sf-line); background: transparent;
+  color: var(--sf-ink); font: 500 13px Geist, Inter, system-ui, sans-serif; cursor: pointer; transition: .25s;
+}
+.sf-top:hover { border-color: var(--sf-acc); }
+/* The wordmark: the brand gradient from the NXTvue artwork (violet, orchid, rose, orange), fading out toward the bottom. Same on every page. */
+.sf-wm {
+  margin: 10px 0 -.06em; padding-bottom: .12em; text-align: center; user-select: none;
+  font: 400 clamp(90px, 24vw, 330px)/.78 'Instrument Serif', Georgia, serif; letter-spacing: -.04em;
+  background: linear-gradient(98deg, #a45de0 0%, #b95fd0 24%, #d9658c 52%, #e07a55 76%, #e39a4c 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-mask-image: linear-gradient(180deg, #000 52%, rgba(0, 0, 0, .5) 100%); mask-image: linear-gradient(180deg, #000 52%, rgba(0, 0, 0, .5) 100%);
+}
+.dark .sf-wm {
+  background-image: linear-gradient(98deg, #b98bff 0%, #d479f2 24%, #ff7aa8 52%, #ff9560 76%, #ffbd62 100%);
+  filter: drop-shadow(0 22px 46px rgba(255, 111, 160, .25));
+}
+@media (max-width: 760px) {
+  .sf-grid { grid-template-columns: 1fr 1fr; }
+  .sf-grid > div:first-child { grid-column: 1 / -1; }
+}
+
+/* Thin brand-gradient line along the bottom edge of the navbar (dark only). */
+.nx-hair { display: none; position: absolute; left: 12%; right: 12%; bottom: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--logo-a), var(--logo-b), transparent); opacity: .55; }
+.dark .nx-hair { display: block; }
+
+/* Notification bell: rings while hovered or focused. */
+.nx-bell svg { transform-origin: 50% 8%; }
+.nx-bell:hover svg, .nx-bell:focus-visible svg { animation: nx-bell-ring .9s ease-in-out infinite; }
+@keyframes nx-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  8% { transform: rotate(16deg); }
+  16% { transform: rotate(-14deg); }
+  24% { transform: rotate(11deg); }
+  32% { transform: rotate(-9deg); }
+  40% { transform: rotate(6deg); }
+  48% { transform: rotate(-3deg); }
+  56% { transform: rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) { .nx-bell:hover svg, .nx-bell:focus-visible svg { animation: none; } }

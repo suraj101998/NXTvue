@@ -6,6 +6,8 @@ import { Bell } from 'lucide-react'
 import { useNotifications } from '@/context/NotificationContext'
 import { TvWidget } from '@/components/charts/TvWidget'
 import { cn } from '@/utils/cn'
+import { useTheme } from '@/hooks/useTheme'
+import '@/components/layout/siteChrome.css'
 
 interface NotificationBellProps {
   className?: string
@@ -14,6 +16,7 @@ interface NotificationBellProps {
 }
 
 export function NotificationBell({ className, triggerClassName }: NotificationBellProps) {
+  const { theme } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
   const { unreadCount } = useNotifications()
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -56,10 +59,10 @@ export function NotificationBell({ className, triggerClassName }: NotificationBe
         onClick={() => setIsOpen((prev) => !prev)}
         className={
           triggerClassName
-            ? cn(triggerClassName, unreadCount > 0 && 'dot')
+            ? cn('nx-bell', triggerClassName, unreadCount > 0 && 'dot')
             : cn(
-                'relative p-2 rounded-xl transition-all duration-200',
-                isOpen ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100',
+                'nx-bell relative p-2 rounded-xl transition-all duration-200',
+                isOpen ? 'bg-slate-100 text-slate-900 dark:bg-white/10 dark:text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-white/10',
               )
         }
         aria-label="Top market stories"
@@ -69,7 +72,7 @@ export function NotificationBell({ className, triggerClassName }: NotificationBe
       >
         <Bell className="w-4 h-4" aria-hidden="true" />
         {!triggerClassName && unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" aria-hidden="true" />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-[#0c0c0e]" aria-hidden="true" />
         )}
       </button>
 
@@ -82,15 +85,15 @@ export function NotificationBell({ className, triggerClassName }: NotificationBe
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 mt-2 w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-[500]"
+            className="absolute right-0 mt-2 w-[min(24rem,calc(100vw-1.5rem))] rounded-2xl bg-white dark:bg-[#151517] border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden z-[500]"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-slate-100">
-              <span className="text-xs font-semibold text-slate-900 tracking-wide uppercase">Top Stories</span>
+            <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 border-b border-slate-100 dark:border-white/10">
+              <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 tracking-wide uppercase">Top Stories</span>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors text-[11px]"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-white/10 transition-colors text-[11px]"
                 aria-label="Close"
               >
                 ✕
@@ -104,7 +107,7 @@ export function NotificationBell({ className, triggerClassName }: NotificationBe
             >
               <TvWidget
                 widget="news-feed"
-                theme="light"
+                theme={theme}
                 height={440}
                 options={{
                   'layout-mode': 'flow',

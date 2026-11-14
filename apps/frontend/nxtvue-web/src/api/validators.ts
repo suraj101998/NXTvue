@@ -116,6 +116,7 @@ export const IndexQuoteSchema = z.object({
   changePct: z.number(),
   positive: z.boolean(),
   source: z.string(),
+  type: z.string().optional(),
 })
 
 export const IndicesDataSchema = z.object({
@@ -185,26 +186,6 @@ export const WatchlistItemSchema = z.object({
 
 export const WatchlistResponseSchema = z.object({
   items: z.array(WatchlistItemSchema),
-})
-
-// ─── Analysis History ─────────────────────────────────────────────────────────────
-
-export const AnalysisHistoryItemSchema = z.object({
-  id: z.string(),
-  ticker: z.string(),
-  market: z.string(),
-  analysis_type: z.string(),
-  created_at: z.string(),
-  projection_year: z.number().int(),
-  status: z.string(),
-  pdf_path: z.string().nullable().optional(),
-})
-
-export const AnalysisHistoryResponseSchema = z.object({
-  items: z.array(AnalysisHistoryItemSchema),
-  total: z.number().int(),
-  page: z.number().int(),
-  page_size: z.number().int(),
 })
 
 // ─── Portfolio Intelligence ─────────────────────────────────────────────────────
@@ -451,8 +432,6 @@ export type PortfolioResponse = z.infer<typeof PortfolioResponseSchema>
 export type WatchlistItem = z.infer<typeof WatchlistItemSchema>
 export type WatchlistResponse = z.infer<typeof WatchlistResponseSchema>
 
-export type AnalysisHistoryItem = z.infer<typeof AnalysisHistoryItemSchema>
-export type AnalysisHistoryResponse = z.infer<typeof AnalysisHistoryResponseSchema>
 
 export type PortfolioIntelligenceResponse = z.infer<typeof PortfolioIntelligenceSchema>
 

@@ -165,10 +165,10 @@ const plans = [
     description: 'Essential equity tracking & fundamental portfolio insights.',
     prices: { Monthly: 999, Quarterly: 899, Annual: 699 },
     accentColor: 'from-slate-500/10 to-slate-400/5',
-    borderColor: 'border-slate-200',
+    borderColor: 'border-slate-200 dark:border-white/10',
     glowColor: '',
-    iconBg: 'bg-slate-100',
-    iconColor: 'text-slate-600',
+    iconBg: 'bg-slate-100 dark:bg-white/10',
+    iconColor: 'text-slate-600 dark:text-slate-300',
     features: [
       'Up to 10 stock & ETF holdings',
       'Basic risk metrics (Volatility, Drawdown)',
@@ -267,7 +267,7 @@ export function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('Annual')
 
   return (
-    <div className="relative min-h-screen bg-[#f4f6fa] text-slate-900 overflow-y-auto selection:bg-blue-200 selection:text-slate-900">
+    <div className="relative min-h-screen bg-[#f4f6fa] dark:bg-bg-primary text-slate-900 dark:text-slate-100 overflow-y-auto selection:bg-blue-200 selection:text-slate-900 dark:selection:bg-blue-500/40 dark:selection:text-white">
       {/* Boomerang Video Background */}
       <BoomerangVideoBg
         src={BG_VIDEO}
@@ -275,7 +275,7 @@ export function PricingPage() {
       />
 
       {/* Gradient Overlay */}
-      <div className="fixed inset-0 bg-gradient-to-b from-white/80 via-white/50 to-[#f4f6fa] pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-gradient-to-b from-white/80 via-white/50 to-[#f4f6fa] dark:from-[#0c0c0e]/80 dark:via-[#0c0c0e]/60 dark:to-[#0c0c0e] pointer-events-none z-0" />
 
       <main className="relative z-10 w-full min-h-screen overflow-x-hidden py-16 px-4 sm:px-8 lg:px-12">
         <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
@@ -285,18 +285,18 @@ export function PricingPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55 }}
-            className="w-full mb-10 flex flex-col items-center text-center"
+            className="relative w-full mb-10 flex flex-col items-center text-center"
           >
-            <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200 shadow-inner">
-              <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-widest font-heading">
+            <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-inner">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-widest font-heading">
                 NXTvue™ Pricing
               </span>
             </div>
-            <h1 className="font-heading font-semibold text-3xl sm:text-4xl lg:text-5xl text-slate-900 mb-4 tracking-tight leading-tight">
+            <h1 className="font-heading font-semibold text-3xl sm:text-4xl lg:text-5xl text-slate-900 dark:text-slate-100 mb-4 tracking-tight leading-tight">
               Scale your{' '}
-              <span className="text-blue-600">investment intelligence.</span>
+              <span className="text-blue-600 dark:text-blue-400">investment intelligence.</span>
             </h1>
-            <p className="max-w-2xl text-slate-500 text-sm sm:text-base leading-relaxed font-light mx-auto">
+            <p className="max-w-2xl text-slate-500 dark:text-slate-400 text-sm sm:text-base leading-relaxed font-light mx-auto">
               Transparent, predictable pricing for serious investors and quantitative analysts.
             </p>
           </motion.div>
@@ -308,7 +308,7 @@ export function PricingPage() {
             transition={{ duration: 0.45, delay: 0.08 }}
             className="mb-12"
           >
-            <div className="inline-flex items-center bg-white rounded-2xl border border-slate-200 p-1 shadow-sm gap-1">
+            <div className="inline-flex items-center bg-white dark:bg-[#151517] rounded-2xl border border-slate-200 dark:border-white/10 p-1 shadow-sm gap-1">
               {(['Monthly', 'Quarterly', 'Annual'] as const).map((cycle) => (
                 <button
                   key={cycle}
@@ -317,8 +317,8 @@ export function PricingPage() {
                   className={cn(
                     'relative flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap select-none',
                     billingCycle === cycle
-                      ? 'bg-slate-900 text-white shadow-sm font-semibold'
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50',
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm font-semibold'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/10',
                   )}
                 >
                   <span>{cycle}</span>
@@ -328,7 +328,7 @@ export function PricingPage() {
                         'text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-none',
                         billingCycle === cycle
                           ? 'bg-blue-500 text-white'
-                          : 'bg-blue-100 text-blue-700',
+                          : 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300',
                       )}
                     >
                       -{cycle === 'Annual' ? '30' : '15'}%
@@ -357,8 +357,8 @@ export function PricingPage() {
                     plan.accentColor,
                     plan.borderColor,
                     plan.popular
-                      ? ['bg-white', plan.glowColor, 'hover:scale-[1.01]'].join(' ')
-                      : ['bg-white/80 backdrop-blur-sm hover:shadow-md'].join(' '),
+                      ? ['bg-white dark:bg-[#151517]', plan.glowColor, 'hover:scale-[1.01]'].join(' ')
+                      : ['bg-white/80 dark:bg-[#151517]/80 backdrop-blur-sm hover:shadow-md'].join(' '),
                   )}
                 >
                   {/* Popular badge */}
@@ -377,18 +377,18 @@ export function PricingPage() {
                       <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', plan.iconBg)}>
                         <PlanIcon className={cn('w-4.5 h-4.5', plan.iconColor)} style={{ width: 18, height: 18 }} />
                       </div>
-                      <h3 className="text-base font-heading font-semibold text-slate-900">{plan.name}</h3>
+                      <h3 className="text-base font-heading font-semibold text-slate-900 dark:text-slate-100">{plan.name}</h3>
                     </div>
 
                     {/* Description */}
-                    <p className="text-slate-500 text-xs leading-relaxed mb-5 font-light">{plan.description}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed mb-5 font-light">{plan.description}</p>
 
                     {/* Price */}
                     <div className="flex items-baseline gap-1 mb-5">
-                      <span className="text-3xl font-heading font-semibold text-slate-900 tracking-tight">
+                      <span className="text-3xl font-heading font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
                         ₹{plan.prices[billingCycle].toLocaleString()}
                       </span>
-                      <span className="text-slate-400 text-xs">/mo</span>
+                      <span className="text-slate-400 dark:text-slate-500 text-xs">/mo</span>
                     </div>
 
                     {/* CTA */}
@@ -400,38 +400,38 @@ export function PricingPage() {
                           ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-blue-500/30'
                           : plan.name === 'Institutional'
                           ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-90 shadow-sm'
-                          : 'bg-slate-900 text-white hover:bg-slate-800',
+                          : 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200',
                       )}
                     >
                       {plan.cta}
                     </Link>
 
                     {/* Feature list */}
-                    <div className="flex flex-col gap-2.5 pt-4 border-t border-slate-100">
+                    <div className="flex flex-col gap-2.5 pt-4 border-t border-slate-100 dark:border-white/10">
                       {plan.features.map((feature, i) => (
                         <div key={i} className="flex items-start gap-2.5">
                           <div
                             className={cn(
                               'flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5',
                               plan.popular
-                                ? 'bg-blue-100 border border-blue-200'
+                                ? 'bg-blue-100 dark:bg-blue-500/20 border border-blue-200 dark:border-blue-400/30'
                                 : plan.name === 'Institutional'
-                                ? 'bg-amber-100 border border-amber-200'
-                                : 'bg-slate-100 border border-slate-200',
+                                ? 'bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30'
+                                : 'bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10',
                             )}
                           >
                             <Check
                               className={cn(
                                 'w-2.5 h-2.5',
                                 plan.popular
-                                  ? 'text-blue-600'
+                                  ? 'text-blue-600 dark:text-blue-400'
                                   : plan.name === 'Institutional'
-                                  ? 'text-amber-600'
-                                  : 'text-slate-600',
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-slate-600 dark:text-slate-300',
                               )}
                             />
                           </div>
-                          <span className="text-xs text-slate-600 leading-relaxed">{feature}</span>
+                          <span className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{feature}</span>
                         </div>
                       ))}
                     </div>
@@ -448,20 +448,20 @@ export function PricingPage() {
             transition={{ duration: 0.55, delay: 0.3 }}
             className="w-full mb-16"
           >
-            <h2 className="font-heading text-2xl font-semibold text-slate-900 text-center mb-8">
+            <h2 className="font-heading text-2xl font-semibold text-slate-900 dark:text-slate-100 text-center mb-8">
               Compare All Features
             </h2>
-            <div className="overflow-x-auto border border-slate-200 rounded-2xl bg-white shadow-sm">
+            <div className="overflow-x-auto border border-slate-200 dark:border-white/10 rounded-2xl bg-white dark:bg-[#151517] shadow-sm">
               <table className="w-full text-sm text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="p-4 font-heading font-medium text-slate-600 tracking-wide text-xs uppercase">Feature</th>
+                  <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5">
+                    <th className="p-4 font-heading font-medium text-slate-600 dark:text-slate-300 tracking-wide text-xs uppercase">Feature</th>
                     {plans.map((plan) => (
                       <th
                         key={plan.name}
                         className={cn(
                           'p-4 font-heading font-semibold text-center text-xs uppercase tracking-wide',
-                          plan.popular ? 'text-blue-600' : 'text-slate-700',
+                          plan.popular ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300',
                         )}
                       >
                         {plan.name}
@@ -472,10 +472,10 @@ export function PricingPage() {
                 <tbody>
                   {comparisonCategories.map((cat) => (
                     <React.Fragment key={cat.category}>
-                      <tr className="bg-slate-50/70 border-t border-b border-slate-200">
+                      <tr className="bg-slate-50/70 dark:bg-white/5 border-t border-b border-slate-200 dark:border-white/10">
                         <td
                           colSpan={4}
-                          className="px-4 py-2.5 font-heading font-semibold text-slate-400 text-[11px] uppercase tracking-widest"
+                          className="px-4 py-2.5 font-heading font-semibold text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-widest"
                         >
                           {cat.category}
                         </td>
@@ -484,14 +484,14 @@ export function PricingPage() {
                         <tr
                           key={f.name}
                           className={cn(
-                            'border-b border-slate-100 hover:bg-slate-50/60 transition-colors',
+                            'border-b border-slate-100 dark:border-white/10 hover:bg-slate-50/60 dark:hover:bg-white/5 transition-colors',
                             idx === cat.features.length - 1 ? 'border-b-0' : '',
                           )}
                         >
-                          <td className="px-4 py-3 text-slate-600 text-xs">{f.name}</td>
-                          <td className="px-4 py-3 text-slate-500 text-xs text-center">{f.starter}</td>
-                          <td className="px-4 py-3 text-blue-700 text-xs font-medium text-center">{f.pro}</td>
-                          <td className="px-4 py-3 text-slate-600 text-xs text-center">{f.inst}</td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-xs">{f.name}</td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs text-center">{f.starter}</td>
+                          <td className="px-4 py-3 text-blue-700 dark:text-blue-300 text-xs font-medium text-center">{f.pro}</td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-xs text-center">{f.inst}</td>
                         </tr>
                       ))}
                     </React.Fragment>
@@ -552,14 +552,14 @@ export function PricingPage() {
             ].map((item, i) => (
               <div
                 key={i}
-                className="flex items-start gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                className="flex items-start gap-4 p-5 rounded-2xl bg-white dark:bg-[#151517] border border-slate-200 dark:border-white/10 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center flex-shrink-0">
-                  <item.icon className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-400/20 flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h4 className="font-heading text-sm font-semibold text-slate-900 mb-1">{item.title}</h4>
-                  <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
+                  <h4 className="font-heading text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">{item.title}</h4>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">{item.desc}</p>
                 </div>
               </div>
             ))}

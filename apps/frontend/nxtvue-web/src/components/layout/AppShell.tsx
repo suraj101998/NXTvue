@@ -1,10 +1,16 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { Header } from './Header'
+import { SiteFooter } from './SiteFooter'
+import { DashBackdrop } from './DashBackdrop'
+import { ChartBackdrop } from './ChartBackdrop'
+import { NavActionContext, type NavAction } from './navAction'
 import { ToastContainer } from '@/components/notifications/ToastContainer'
 import { OfflineBanner } from '@/components/feedback/OfflineBanner'
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary'
+import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/utils/cn'
+import './siteChrome.css'
 
 interface AppShellProps {
   className?: string
@@ -14,44 +20,28 @@ interface AppShellProps {
 
 export function AppShell({ className, hideHeader = false, children }: AppShellProps) {
   const location = useLocation()
-  const isDashboard = location.pathname === '/dashboard' || location.pathname === '/'
-  // The analysis report page renders its own top bar and footer.
-  const isReport = location.pathname.startsWith('/analysis') && location.pathname !== '/analysis/history'
-  // The charts terminal also renders its own top bar, ticker and footer.
-  const isChart = location.pathname.startsWith('/chart')
-  const shouldHideHeader = hideHeader || isDashboard || isReport || isChart
-  const showTicker = false
+  const { theme } = useTheme()
+  const [navAction, setNavAction] = useState<NavAction | null>(null)
+  const path = location.pathname
+  const isDashboard = path === '/dashboard' || path === '/'
+  const isChart = path === '/chart' || path.startsWith('/chart/')
 
   return (
-    <div className={cn('min-h-screen', isDashboard ? 'bg-[#F5F5F5]' : 'bg-bg-primary text-text-primary', className)}>
-      <OfflineBanner />
-      <ToastContainer />
-      {!shouldHideHeader && <Header showTicker={showTicker} />}
-      <main
-        id="main-content"
-        className={cn(!shouldHideHeader && (showTicker ? 'pt-32 lg:pt-[136px]' : 'pt-14 lg:pt-[68px]'))}
-        role="main"
-      >
-        <ErrorBoundary sectionName="Page Content">
-          {children || <Outlet />}
-        </ErrorBoundary>
-      </main>
-      {!isDashboard && !isReport && !isChart && (
-        <footer className="border-t border-slate-200 bg-white">
-          <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <p className="text-text-muted text-sm">
-                © 2026 NXTvue. All rights reserved.
-              </p>
-              <div className="flex items-center gap-6">
-                <a href="#" className="text-text-muted hover:text-text-primary text-sm transition-colors">Privacy</a>
-                <a href="#" className="text-text-muted hover:text-text-primary text-sm transition-colors">Terms</a>
-                <a href="#" className="text-text-muted hover:text-text-primary text-sm transition-colors">Contact</a>
-              </div>
-            </div>
-          </div>
-        </footer>
-      )}
-    </div>
+    <NavActionContext.Provider value={{ action: navAction, setAction: setNavAction }}>
+      <div className={cn('min-h-screen', isDashboard ? 'dash-dark' : 'bg-bg-primary text-text-primary', isChart && 'chart-shell', className)}>
+        {isDashboard && <DashBackdrop />}
+        {isChart && <ChartBackdrop />}
+        <OfflineBanner />
+        <ToastContainer />
+        {!hideHeader && <Header />}
+        {/* The navbar is fixed, so every page starts below it. */}
+        <main id="main-content" className={cn(!hideHeader && 'pt-14 lg:pt-16')} role="main">
+          <ErrorBoundary sectionName="Page Content">
+            {children || <Outlet />}
+          </ErrorBoundary>
+        </main>
+        <SiteFooter theme={theme} />
+      </div>
+    </NavActionContext.Provider>
   )
 }

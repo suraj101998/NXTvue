@@ -49,7 +49,7 @@ def test_heatmap_returns_live_rows(client, monkeypatch):
 
 
 def test_heatmap_unknown_index_is_422(client):
-    assert client.get("/api/v1/market/india/heatmap?index=NIFTYPHARMA").status_code == 422
+    assert client.get("/api/v1/market/india/heatmap?index=NIFTYCRYPTO").status_code == 422
 
 
 def test_heatmap_skips_stocks_without_a_quote(client, monkeypatch):
@@ -270,3 +270,23 @@ def test_cached_raises_http_502():
     with pytest.raises(HTTPException) as e:
         asyncio.run(idata._cached(("k",), 10, boom))
     assert e.value.status_code == 502
+
+
+def test_heatmap_builds_nse_sector_index_from_csv_list(client, monkeypatch):
+    csv_text = "Company Name,Industry,Symbol,Series,ISIN Code\nSun Pharma,Healthcare,SUNPHARMA,EQ,X\nGhost Co,Healthcare,GHOST,EQ,Y\n"
+
+    class _Resp:
+        text = csv_text
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(idata.requests, "get", lambda *a, **k: _Resp())
+    monkeypatch.setattr(idata, "_tt_members", lambda _id: [{"sid": "SUN", "symbol": "SUNPHARMA", "name": "Sun", "sector": "Health Care"}])
+    monkeypatch.setattr(idata, "_tt_search_sid", lambda sym: None)  # GHOST has no Tickertape id
+    monkeypatch.setattr(idata, "_tt_quotes", lambda sids: {"SUN": {**QUOTES["TCS"], "sid": "SUN"}})
+    idata._n500 = (0.0, {})
+    body = client.get("/api/v1/market/india/heatmap?index=niftypharma").json()
+    assert body["name"] == "NIFTY Pharma" and body["count"] == 1
+    assert body["stocks"][0]["symbol"] == "SUNPHARMA" and body["stocks"][0]["sector"] == "Healthcare"
+    assert body["stocks"][0]["logo"].endswith("/SUN.png")

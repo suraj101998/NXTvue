@@ -1,16 +1,29 @@
 import { getJson, shared } from '@/api/market'
 
-export type HeatmapIndex = 'NIFTY50' | 'NIFTYBANK' | 'NIFTYIT' | 'NIFTYAUTO' | 'NIFTYFMCG' | 'NIFTY100' | 'NIFTY200'
+export type HeatmapIndex =
+  | 'NIFTY50' | 'NIFTYBANK' | 'NIFTYIT' | 'NIFTYAUTO' | 'NIFTYFMCG' | 'NIFTY100' | 'NIFTY200'
+  | 'NIFTYPHARMA' | 'NIFTYMETAL' | 'NIFTYREALTY' | 'NIFTYMEDIA' | 'NIFTYPSUBANK' | 'NIFTYPRIVATEBANK'
+  | 'NIFTYFINANCIALSERVICES' | 'NIFTYOILGAS' | 'NIFTYCONSUMERDURABLES' | 'NIFTYHEALTHCARE'
 
-/** Indices the backend can build a live heatmap for (Tickertape serves these constituents). */
-export const HEATMAP_INDEX_BY_NAME: Record<string, HeatmapIndex> = {
-  'NIFTY 50': 'NIFTY50',
+/**
+ * NSE sector indices the backend can draw a live stock heatmap for, keyed by the index name NSE
+ * reports in the pulse. Chemicals and Cement are left out: no member list is published for them.
+ */
+export const SECTOR_HEATMAP: Record<string, HeatmapIndex> = {
   'NIFTY BANK': 'NIFTYBANK',
+  'NIFTY PRIVATE BANK': 'NIFTYPRIVATEBANK',
+  'NIFTY PSU BANK': 'NIFTYPSUBANK',
+  'NIFTY FINANCIAL SERVICES': 'NIFTYFINANCIALSERVICES',
   'NIFTY IT': 'NIFTYIT',
+  'NIFTY PHARMA': 'NIFTYPHARMA',
+  'NIFTY HEALTHCARE INDEX': 'NIFTYHEALTHCARE',
   'NIFTY AUTO': 'NIFTYAUTO',
   'NIFTY FMCG': 'NIFTYFMCG',
-  'NIFTY 100': 'NIFTY100',
-  'NIFTY 200': 'NIFTY200',
+  'NIFTY METAL': 'NIFTYMETAL',
+  'NIFTY REALTY': 'NIFTYREALTY',
+  'NIFTY MEDIA': 'NIFTYMEDIA',
+  'NIFTY OIL & GAS': 'NIFTYOILGAS',
+  'NIFTY CONSUMER DURABLES': 'NIFTYCONSUMERDURABLES',
 }
 
 export interface IndiaStock {
@@ -26,6 +39,8 @@ export interface IndiaStock {
   turnover: number | null
   /** Epoch milliseconds of the last trade. */
   asOf: number | null
+  /** Company logo URL. May 404 for small companies, so the image must handle load errors. */
+  logo?: string | null
 }
 
 export interface IndiaHeatmap {

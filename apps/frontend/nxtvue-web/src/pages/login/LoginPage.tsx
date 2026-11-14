@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Logo } from '@/components/brand/Logo'
 import { useAuth } from '@/auth/AuthContext'
 import { cn } from '@/utils/cn'
 import { Loader2 } from 'lucide-react'
@@ -82,18 +83,8 @@ export function LoginPage() {
 
       {/* Header — brand only */}
       <header className="fixed top-0 left-0 right-0 z-20 h-20 sm:h-24 flex items-center px-6 sm:px-12 lg:px-16 pointer-events-none">
-        <div className="flex items-center gap-3 pointer-events-auto" aria-label="NXTvue">
-          <svg className="w-7 h-5 text-slate-900" viewBox="0 0 23 17" aria-hidden="true">
-            <path d="M8.15 0.9 L4.55 0.9 L0.5 9.3 L4.1 9.3 Z" fill="currentColor" />
-            <path d="M17.0 0 L13.4 0 L6.15 16.4 L9.75 16.4 Z" fill="currentColor" />
-            <path d="M22.9 0 L19.3 0 L15.0 7.6 L18.6 7.6 Z" fill="currentColor" />
-            <path d="M22.6 6.9 L19.0 6.9 L14.05 16.4 L17.65 16.4 Z" fill="currentColor" />
-          </svg>
-          <span
-            className="font-heading text-xl sm:text-2xl font-bold tracking-[0.08em] text-slate-900"
-          >
-            NXTvue
-          </span>
+        <div className="pointer-events-auto" aria-label="NXTvue">
+          <Logo />
         </div>
       </header>
 

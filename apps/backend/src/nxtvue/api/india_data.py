@@ -8,6 +8,8 @@ If an upstream call fails, the last good value is served (flagged ``stale``) ins
 """
 
 import asyncio
+import csv
+import io
 import logging
 import threading
 import time
@@ -48,6 +50,23 @@ HEATMAP_INDICES: Dict[str, Tuple[str, str]] = {
     "NIFTY100": (".NIFTY100", "NIFTY 100"),
     "NIFTY200": (".NIFTY200", "NIFTY 200"),
 }
+
+# Sector indices Tickertape has no constituents for. NSE publishes the member list as a CSV;
+# quotes still come from Tickertape. Heatmap index key -> (CSV file name, label).
+NSE_SECTOR_LISTS: Dict[str, Tuple[str, str]] = {
+    "NIFTYPHARMA": ("niftypharma", "NIFTY Pharma"),
+    "NIFTYMETAL": ("niftymetal", "NIFTY Metal"),
+    "NIFTYREALTY": ("niftyrealty", "NIFTY Realty"),
+    "NIFTYMEDIA": ("niftymedia", "NIFTY Media"),
+    "NIFTYPSUBANK": ("niftypsubank", "NIFTY PSU Bank"),
+    "NIFTYPRIVATEBANK": ("nifty_privatebank", "NIFTY Private Bank"),
+    "NIFTYFINANCIALSERVICES": ("niftyfinance", "NIFTY Financial Services"),
+    "NIFTYOILGAS": ("niftyoilgas", "NIFTY Oil & Gas"),
+    "NIFTYCONSUMERDURABLES": ("niftyconsumerdurables", "NIFTY Consumer Durables"),
+    "NIFTYHEALTHCARE": ("niftyhealthcare", "NIFTY Healthcare"),
+}
+_LOGO_URL = "https://assets.tickertape.in/stock-logos/{sid}.png"
+_NSE_LIST_URL = "https://nsearchives.nseindia.com/content/indices/ind_{slug}list.csv"
 
 # TTLs in seconds
 _TTL_QUOTES = 15
@@ -120,6 +139,41 @@ def _tt_members(index_id: str) -> List[Dict[str, Any]]:
     ]
 
 
+_n500: Tuple[float, Dict[str, Dict[str, Any]]] = (0.0, {})
+
+
+def _nifty500_by_ticker() -> Dict[str, Dict[str, Any]]:
+    """NIFTY 500 members keyed by NSE ticker, to turn NSE's ticker lists into Tickertape ids."""
+    global _n500
+    if time.time() - _n500[0] > _TTL_MEMBERS:
+        _n500 = (time.time(), {m["symbol"]: m for m in _tt_members(".NIFTY500")})
+    return _n500[1]
+
+
+def _nse_list_members(slug: str) -> List[Dict[str, Any]]:
+    """Members of an NSE sector index: NSE's CSV list, resolved to Tickertape ids."""
+    r = requests.get(_NSE_LIST_URL.format(slug=slug), headers={"User-Agent": _UA}, timeout=_TIMEOUT)
+    r.raise_for_status()
+    rows = list(csv.DictReader(io.StringIO(r.text)))
+    known = _nifty500_by_ticker()
+    members: List[Dict[str, Any]] = []
+    for row in rows:
+        sym = (row.get("Symbol") or "").strip()
+        if not sym:
+            continue
+        hit = known.get(sym)
+        if not hit:  # a small-cap outside the NIFTY 500: look it up by ticker
+            try:
+                hit = _tt_search_sid(sym)
+            except Exception as exc:
+                logger.debug("no Tickertape id for %s: %s", sym, exc)
+        if hit:
+            members.append({"sid": hit["sid"], "symbol": sym, "name": row.get("Company Name"), "sector": row.get("Industry")})
+    if not members:
+        raise RuntimeError(f"no members resolved for {slug}")
+    return members
+
+
 def _tt_quotes(sids: List[str]) -> Dict[str, Dict[str, Any]]:
     out: Dict[str, Dict[str, Any]] = {}
     for i in range(0, len(sids), 100):
@@ -169,10 +223,15 @@ async def heatmap(index: str = Query("NIFTY50", description=f"One of {sorted(HEA
     ``turnover`` (traded value) is the size measure; market cap is not in the quote feed.
     """
     key = index.upper().replace(" ", "")
-    if key not in HEATMAP_INDICES:
-        raise HTTPException(status_code=422, detail=f"index must be one of {sorted(HEATMAP_INDICES)}")
-    index_id, label = HEATMAP_INDICES[key]
-    members, _ = await _cached(("members", key), _TTL_MEMBERS, lambda: _tt_members(index_id))
+    if key in HEATMAP_INDICES:
+        index_id, label = HEATMAP_INDICES[key]
+        load_members: Callable[[], Any] = lambda: _tt_members(index_id)
+    elif key in NSE_SECTOR_LISTS:
+        slug, label = NSE_SECTOR_LISTS[key]
+        load_members = lambda: _nse_list_members(slug)
+    else:
+        raise HTTPException(status_code=422, detail=f"index must be one of {sorted({*HEATMAP_INDICES, *NSE_SECTOR_LISTS})}")
+    members, _ = await _cached(("members", key), _TTL_MEMBERS, load_members)
     quotes, stale = await _cached(
         ("quotes", key), _TTL_QUOTES, lambda: _tt_quotes([m["sid"] for m in members])
     )
@@ -181,7 +240,7 @@ async def heatmap(index: str = Query("NIFTY50", description=f"One of {sorted(HEA
         q = quotes.get(m["sid"])
         if not q or q.get("price") is None:
             continue
-        stocks.append({**m, **_quote_row(q)})
+        stocks.append({**m, **_quote_row(q), "logo": _LOGO_URL.format(sid=m["sid"])})
     if not stocks:
         raise HTTPException(status_code=502, detail="No quotes returned for this index")
     return {"index": key, "name": label, "count": len(stocks), "stale": stale, "stocks": stocks}

@@ -10,17 +10,16 @@
 
 import './analysis.css'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { useAnalysis } from '@/hooks/useAnalysis'
 import { GlassCard, KpiCard, Note, Rev } from './reportUi'
 import { Bullets, SectionBody } from './reportSections'
 import { KIND_LABEL, deriveChips, deriveHeroKpis, parseValuation, parseVerdict, sectionKind } from './reportParser'
 import type { SectionKind } from './reportParser'
-import { NotificationBell } from '@/components/notifications/NotificationBell'
-import {
-  LayoutDashboard, CandlestickChart, LineChart, BarChart2, Info,
-  Menu, X, Sun, Moon, RefreshCw, AlertCircle, ChevronRight,
-} from 'lucide-react'
+import { RefreshCw, AlertCircle, ChevronRight } from 'lucide-react'
+import { RefreshButton } from '@/components/layout/PageActions'
+import { useNavAction } from '@/components/layout/navAction'
+import { useTheme } from '@/hooks/useTheme'
 
 /* ─── Public types (kept for importers) ─────────────────────────────────────── */
 export interface AnalysisSection {
@@ -143,15 +142,6 @@ function MascotEyes() {
   )
 }
 
-/* ─── Nav items (mirrors Navigation.tsx — kept local to avoid coupling) ──────── */
-const NAV = [
-  { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: 'Charts',    href: '/chart',     icon: <CandlestickChart  className="w-4 h-4" /> },
-  { label: 'Analyze',   href: '/analysis',  icon: <LineChart         className="w-4 h-4" /> },
-  { label: 'My Portfolio', href: '/portfolio', icon: <BarChart2      className="w-4 h-4" /> },
-  { label: 'About',     href: '/about',     icon: <Info              className="w-4 h-4" /> },
-]
-
 /** Jump-bar entries. Bullish / bearish triggers render inside "Key risks", as in the design. */
 interface JumpItem { slug: string; label: string; num: string }
 const NESTED: SectionKind[] = ['bullish', 'bearish']
@@ -166,15 +156,12 @@ function buildJumpItems(sections: AnalysisSection[]): JumpItem[] {
   })
 }
 
-/* ─── Top navigation bar ─────────────────────────────────────────────────────── */
-function ReportTopbar({ symbol, items }: { symbol?: string; items: JumpItem[] }) {
-  const navigate    = useNavigate()
-  const { pathname } = useLocation()
-  const [mobileOpen, setMobileOpen] = useState(false)
+/* ─── Section jump-bar (fixed under the app navbar once you scroll past the hero) ─ */
+function SectionBar({ symbol, items }: { symbol?: string; items: JumpItem[] }) {
   const [secShow, setSecShow] = useState(false)
   const [secActive, setSecActive] = useState('top')
 
-  // Section spy + secbar visibility
+  // Section spy + reading-progress bar
   useEffect(() => {
     const ids = ['top', ...items.map((i) => i.slug)]
     const onScroll = () => {
@@ -195,7 +182,7 @@ function ReportTopbar({ symbol, items }: { symbol?: string; items: JumpItem[] })
     return () => window.removeEventListener('scroll', onScroll)
   }, [items])
 
-  // Scroll active secbar link into view
+  // Keep the active link in view
   useEffect(() => {
     const sb = document.getElementById('nxr-secbar')
     if (!sb || !secShow) return
@@ -203,71 +190,19 @@ function ReportTopbar({ symbol, items }: { symbol?: string; items: JumpItem[] })
     if (active) sb.scrollTo({ left: active.offsetLeft - sb.clientWidth / 2 + active.offsetWidth / 2, behavior: 'smooth' })
   }, [secActive, secShow])
 
-  const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard'
-    return pathname.startsWith(href)
-  }
-
+  if (!symbol) return null
   return (
-    <div className="topbar">
-      <div className="tb">
-        {/* Main nav bar */}
-        <div className="nbar">
-          {/* Logo */}
-          <Link to="/dashboard" className="logo">
-            <span className="mk">
-              <svg viewBox="0 0 28 22" fill="none" stroke="url(#nxr-lg)" strokeWidth="3.2" strokeLinecap="round">
-                <defs>
-                  <linearGradient id="nxr-lg" x1="0" y1="0" x2="1" y2="1">
-                    <stop stopColor="#7c9cff"/><stop offset="1" stopColor="#b48cff"/>
-                  </linearGradient>
-                </defs>
-                <path d="M10 2 4 20M18 2l-6 18M26 2l-6 18"/>
-              </svg>
-            </span>
-            NXTvue
-          </Link>
-
-          {/* Centre links */}
-          <div className="links">
-            {NAV.map((n) => (
-              <Link key={n.href} to={n.href} className={isActive(n.href) ? 'cur' : ''}>{n.label}</Link>
-            ))}
-          </div>
-
-          {/* Right actions */}
-          <div className="nact">
-            <NotificationBell triggerClassName="ib" />
-            {symbol && (
-              <a className="btn p" href="#verdict">See Verdict</a>
-            )}
-            <button className="btn lo" onClick={() => navigate('/login')}>Logout</button>
-            <button className="ib" id="nxr-burger" aria-label="Menu" onClick={() => setMobileOpen((v) => !v)}>
-              {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile sheet */}
-        <div className={`sheet${mobileOpen ? ' open' : ''}`} onClick={() => setMobileOpen(false)}>
-          {NAV.map((n) => <Link key={n.href} to={n.href}>{n.label}</Link>)}
-          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login') }}>Logout</a>
-        </div>
-
-        {/* Section jump-bar */}
-        {symbol && (
-          <div id="nxr-secbar" className={`secbar${secShow ? ' show' : ''}`}>
-            <span className="tag">{symbol} Report</span>
-            <a href="#top" data-s="top" className={secActive === 'top' ? 'on' : ''}>
-              <i>00</i>Overview
-            </a>
-            {items.map((it) => (
-              <a key={it.slug} href={`#${it.slug}`} data-s={it.slug} className={secActive === it.slug ? 'on' : ''}>
-                <i>{it.num}</i>{it.label}
-              </a>
-            ))}
-          </div>
-        )}
+    <div className="secfix">
+      <div id="nxr-secbar" className={`secbar${secShow ? ' show' : ''}`}>
+        <span className="tag">{symbol} Report</span>
+        <a href="#top" data-s="top" className={secActive === 'top' ? 'on' : ''}>
+          <i>00</i>Overview
+        </a>
+        {items.map((it) => (
+          <a key={it.slug} href={`#${it.slug}`} data-s={it.slug} className={secActive === it.slug ? 'on' : ''}>
+            <i>{it.num}</i>{it.label}
+          </a>
+        ))}
       </div>
     </div>
   )
@@ -369,15 +304,8 @@ export function AnalysisPage() {
   const currentMarket = (searchParams.get('market') || (rawTicker.includes(':') ? rawTicker.split(':')[1] : 'india')).toLowerCase()
   const shouldGenerateOnLoad = searchParams.get('generate') === 'true'
 
-  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
-    localStorage.getItem('nxtvue_analysis_theme') === 'light' ? 'light' : 'dark',
-  )
-  const isLight = theme === 'light'
-  const toggleTheme = () => {
-    const next = isLight ? 'dark' : 'light'
-    setTheme(next)
-    localStorage.setItem('nxtvue_analysis_theme', next)
-  }
+  const { theme } = useTheme()
+  const [reloadTick, setReloadTick] = useState(0)
 
   const [report, setReport]       = useState<DynamicReport | null>(null)
   const [loading, setLoading]     = useState(true)
@@ -418,7 +346,7 @@ export function AnalysisPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [currentTicker, currentMarket, shouldGenerateOnLoad, runGenerator])
+  }, [currentTicker, currentMarket, shouldGenerateOnLoad, runGenerator, reloadTick])
 
   // ── SSE complete ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -475,6 +403,9 @@ export function AnalysisPage() {
     return v ? parseVerdict(v.content).targetZone : undefined
   })()
 
+  // The navbar's main button reads "See Verdict" while a report is open.
+  useNavAction(report ? { label: 'See Verdict', href: '#verdict' } : null)
+
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
     <div className="nxr" id="nxr-root" data-theme={theme}>
@@ -482,8 +413,7 @@ export function AnalysisPage() {
       <div className="grain" />
       <div className="prog" id="nxr-prog" />
 
-      {/* ── Topbar ─────────────────────────────────────────────────── */}
-      <ReportTopbar symbol={report?.symbol} items={jumpItems} />
+      <SectionBar symbol={report?.symbol} items={jumpItems} />
 
       {/* ── Main ───────────────────────────────────────────────────── */}
       <main className="mainw" id="top">
@@ -499,15 +429,9 @@ export function AnalysisPage() {
                 <button className="pill btnlike" disabled={isGenerating} onClick={handleStartGeneration}>Regenerate</button>
               </>
             )}
-            <button
-              className="tbtn"
-              onClick={toggleTheme}
-              title={`Switch to ${isLight ? 'Dark' : 'Light'} mode`}
-              aria-label="Toggle Theme"
-            >
-              {isLight ? <Moon width={16} height={16} /> : <Sun width={16} height={16} />}
-              <span>{isLight ? 'Dark' : 'Light'}</span>
-            </button>
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <RefreshButton onClick={() => setReloadTick((n) => n + 1)} loading={loading || isGenerating} />
+            </span>
           </div>
 
           {/* Title */}
@@ -656,6 +580,18 @@ export function AnalysisPage() {
           })
         })()}
 
+        {/* ── Report actions ─────────────────────────────────────── */}
+        {report && (
+          <Rev>
+            <div className="glass fcta">
+              <h3>Turn the dislocation into a plan.</h3>
+              <div>
+                <a className="btn p" href={report.pdfUrl || `/api/v1/reports/${report.symbol}.pdf`} target="_blank" rel="noreferrer">View Official PDF</a>
+              </div>
+            </div>
+          </Rev>
+        )}
+
         {/* ── Disclaimer ─────────────────────────────────────────── */}
         {report && (
           <Rev>
@@ -667,66 +603,6 @@ export function AnalysisPage() {
           </Rev>
         )}
       </main>
-
-      {/* ── Footer ─────────────────────────────────────────────────── */}
-      {report && (
-        <footer className="foot">
-          <div className="w">
-            {/* CTA banner */}
-            <Rev>
-              <div className="glass fcta">
-                <h3>Turn the dislocation into a plan.</h3>
-                <div>
-                  <Link to="/analysis/history" className="btn p">All Reports</Link>
-                  <a className="btn" href={report.pdfUrl || `/api/v1/reports/${report.symbol}.pdf`} target="_blank" rel="noreferrer">View Official PDF</a>
-                </div>
-              </div>
-            </Rev>
-
-            {/* Footer grid */}
-            <div className="fgrid">
-              <div>
-                <Link to="/dashboard" className="logo" style={{ marginBottom: 14 }}>
-                  <svg viewBox="0 0 28 22" fill="none" stroke="url(#nxr-lg2)" strokeWidth="3" strokeLinecap="round" width="26" height="22">
-                    <defs><linearGradient id="nxr-lg2" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#7c9cff"/><stop offset="1" stopColor="#b48cff"/></linearGradient></defs>
-                    <path d="M10 2 4 20M18 2l-6 18M26 2l-6 18"/>
-                  </svg>
-                  NXTvue
-                </Link>
-                <p>Institutional-grade equity research, generated from historical and market data and built for patient capital.</p>
-              </div>
-              <div>
-                <h5>Product</h5>
-                {[['Dashboard','/dashboard'],['Charts','/chart'],['Analyze','/analysis'],['My Portfolio','/portfolio']].map(([l,h])=>(
-                  <Link key={l} to={h}>{l}</Link>
-                ))}
-              </div>
-              <div>
-                <h5>Company</h5>
-                {[['About','/about'],['See Plans','/pricing'],['Contact','#']].map(([l,h])=>(
-                  <Link key={l} to={h}>{l}</Link>
-                ))}
-              </div>
-              <div>
-                <h5>Legal</h5>
-                {[['Privacy','#'],['Terms','#'],['Disclaimer','#disc']].map(([l,h])=>(
-                  <a key={l} href={h}>{l}</a>
-                ))}
-              </div>
-            </div>
-
-            {/* Footer bottom */}
-            <div className="fbot">
-              <span>© 2026 NXTvue. All rights reserved.</span>
-              <span className="st"><i/>Engine online</span>
-              <a href="#top" className="btn">Back to top ↑</a>
-            </div>
-
-            {/* Watermark */}
-            <div className="wm" aria-hidden="true">NXTvue</div>
-          </div>
-        </footer>
-      )}
 
       {/* ── A.R.I.A Chat ─────────────────────────────────────────────── */}
       {/* FAB */}

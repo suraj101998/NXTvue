@@ -35,6 +35,7 @@ from ..portfolio.indmoney_routes import router as indmoney_router
 from .market_gateway import router as market_router
 from .india_data import router as india_router
 from .us_data import router as us_router
+from .us_pulse import router as us_pulse_router
 from .trader_desk import router as desk_router
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ app.include_router(indmoney_router, prefix="/api/v1")
 app.include_router(market_router, prefix="/api/v1")
 app.include_router(india_router, prefix="/api/v1")
 app.include_router(us_router, prefix="/api/v1")
+app.include_router(us_pulse_router, prefix="/api/v1")
 app.include_router(desk_router, prefix="/api/v1")
 
 # ---------------------------------------------------------------------------
