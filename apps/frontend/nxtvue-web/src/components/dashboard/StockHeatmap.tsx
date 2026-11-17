@@ -45,11 +45,13 @@ interface Props {
   height?: number
   /** Bump this number to reload now instead of waiting for the next poll. */
   refreshSignal?: number
+  /** Called with the ticker when a tile is clicked (or activated from the keyboard). */
+  onSelect?: (symbol: string) => void
 }
 
 const INR = { symbol: '₹', locale: 'en-IN' }
 
-export function StockHeatmap({ id, load, label, currency = INR, height = 560, refreshSignal = 0 }: Props) {
+export function StockHeatmap({ id, load, label, currency = INR, height = 560, refreshSignal = 0, onSelect }: Props) {
   const dark = useTheme().theme === 'dark'
   const { data, loading, error, updatedAt, refresh } = usePolled(`heatmap:${id}`, load, REFRESH_MS)
   useEffect(() => {
@@ -142,7 +144,23 @@ export function StockHeatmap({ id, load, label, currency = INR, height = 560, re
                 const nameY = top + logoSize + gap + nameSize * 0.85
                 const pctY = nameY + pctSize + 4
                 return (
-                  <g key={s.symbol} transform={`translate(${t.x},${t.y})`}>
+                  <g
+                    key={s.symbol}
+                    transform={`translate(${t.x},${t.y})`}
+                    {...(onSelect && {
+                      role: 'link',
+                      tabIndex: 0,
+                      'aria-label': `Open ${s.name ?? s.symbol} chart`,
+                      style: { cursor: 'pointer' },
+                      onClick: () => onSelect(s.symbol),
+                      onKeyDown: (e: React.KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onSelect(s.symbol)
+                        }
+                      },
+                    })}
+                  >
                     <title>
                       {`${s.name ?? s.symbol} (${s.symbol})\n${currency.symbol}${s.price.toLocaleString(currency.locale)}  ${
                         s.changePct === null ? '' : `${s.changePct >= 0 ? '+' : ''}${s.changePct.toFixed(2)}%`

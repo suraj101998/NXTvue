@@ -111,6 +111,7 @@ export const PortfolioResultSchema = z.object({
 
 export const IndexQuoteSchema = z.object({
   name: z.string(),
+  symbol: z.string().nullish(),
   value: z.number(),
   change: z.number(),
   changePct: z.number(),

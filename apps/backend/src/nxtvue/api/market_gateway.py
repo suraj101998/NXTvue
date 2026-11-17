@@ -67,6 +67,8 @@ def _clean_symbol(raw: str) -> str:
 
 
 def _yahoo_candidates(symbol: str, market: str) -> List[str]:
+    if symbol.startswith("^"):  # Yahoo index symbol (^NSEI, ^GSPC): already exact
+        return [symbol]
     if market == "india":
         clean = re.sub(r"\.(NS|BO)$", "", symbol)
         return [f"{clean}.NS", f"{clean}.BO"]

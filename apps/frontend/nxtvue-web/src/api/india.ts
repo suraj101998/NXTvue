@@ -4,11 +4,9 @@ export type HeatmapIndex =
   | 'NIFTY50' | 'NIFTYBANK' | 'NIFTYIT' | 'NIFTYAUTO' | 'NIFTYFMCG' | 'NIFTY100' | 'NIFTY200'
   | 'NIFTYPHARMA' | 'NIFTYMETAL' | 'NIFTYREALTY' | 'NIFTYMEDIA' | 'NIFTYPSUBANK' | 'NIFTYPRIVATEBANK'
   | 'NIFTYFINANCIALSERVICES' | 'NIFTYOILGAS' | 'NIFTYCONSUMERDURABLES' | 'NIFTYHEALTHCARE'
+  | 'NIFTYCHEMICALS' | 'NIFTYCEMENT'
 
-/**
- * NSE sector indices the backend can draw a live stock heatmap for, keyed by the index name NSE
- * reports in the pulse. Chemicals and Cement are left out: no member list is published for them.
- */
+/** NSE sector indices the backend can draw a live stock heatmap for, keyed by the index name NSE reports in the pulse. */
 export const SECTOR_HEATMAP: Record<string, HeatmapIndex> = {
   'NIFTY BANK': 'NIFTYBANK',
   'NIFTY PRIVATE BANK': 'NIFTYPRIVATEBANK',
@@ -24,6 +22,8 @@ export const SECTOR_HEATMAP: Record<string, HeatmapIndex> = {
   'NIFTY MEDIA': 'NIFTYMEDIA',
   'NIFTY OIL & GAS': 'NIFTYOILGAS',
   'NIFTY CONSUMER DURABLES': 'NIFTYCONSUMERDURABLES',
+  'NIFTY CHEMICALS': 'NIFTYCHEMICALS',
+  'NIFTY CEMENT': 'NIFTYCEMENT',
 }
 
 export interface IndiaStock {

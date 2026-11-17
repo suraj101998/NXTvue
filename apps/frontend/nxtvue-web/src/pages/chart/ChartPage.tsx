@@ -25,6 +25,7 @@ import { ChartPanel, Kpis, MaMatrix, ObScanner, PriceBlock, SideRail, VolumeProf
 import { CongressPanel, DisclosuresPanel, EarningsPanel, EntryPanel, NewsPanel, PlanPanel, SetupsPanel, TimeMachinePanel } from './DeskPanels'
 import { IndiaFundamentalsPanels, UsFundamentalsPanels } from './Fundamentals'
 import { useDebounced, usePack } from './useChartData'
+import { useChartStyle } from '@/components/charts/useChartStyle'
 import './chart.css'
 
 const DEFAULT_SYMBOL = { india: 'RELIANCE', us: 'NVDA' } as const
@@ -56,6 +57,7 @@ export function ChartPage() {
 
   const [tf, setTf] = useState<TF>('6M')
   const [layers, setLayers] = useState<Layers>(ALL_ON)
+  const [chartStyle, setChartStyle] = useChartStyle()
   const [capital, setCapital] = useState(() => localStorage.getItem(CAPITAL_KEY) ?? '')
   const [risk, setRisk] = useState(() => localStorage.getItem(RISK_KEY) ?? '1')
   useEffect(() => {
@@ -222,6 +224,9 @@ export function ChartPage() {
             onTf={setTf}
             layers={layers}
             onLayer={(k: LayerKey) => setLayers((l) => ({ ...l, [k]: !l[k] }))}
+            chartStyle={chartStyle}
+            onChartStyle={setChartStyle}
+            headline={snap && snap.pc ? { price: snap.c, change: snap.c - snap.pc, changePct: (snap.c / snap.pc - 1) * 100 } : null}
             hi={snap?.hi ?? null}
             lo={snap?.lo ?? null}
             fmt={fmt}

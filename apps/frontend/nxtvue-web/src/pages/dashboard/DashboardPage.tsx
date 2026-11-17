@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useIndices } from '@/hooks/useIndices'
+import { useIndices, type IndexQuote } from '@/hooks/useIndices'
+import { IndexChartModal } from '@/components/dashboard/IndexChartModal'
 import { NxtVueChatbot } from '@/components/dashboard/NxtVueChatbot'
 import { QuickStockSearchModal } from '@/components/dashboard/QuickStockSearchModal'
 import { Reveal } from '@/components/motion/Reveal'
@@ -12,6 +13,8 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const { data: indicesData } = useIndices()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [openIndex, setOpenIndex] = useState<{ index: IndexQuote; market: 'india' | 'us' } | null>(null)
+  const closeIndex = useCallback(() => setOpenIndex(null), [])
   // Hero depth: the video drifts a little slower than the page, the copy a little faster.
   const videoRef = useParallax<HTMLVideoElement>(0.1, { scale: 1.12, max: 900 })
   const copyRef = useParallax<HTMLDivElement>(-0.06, { max: 700 })
@@ -270,10 +273,12 @@ export function DashboardPage() {
                     indianIndices.map((idx) => {
                       const isPositive = (idx.positive ?? idx.change >= 0)
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={idx.name}
-                          onClick={() => navigate(`/analysis?ticker=${idx.name.replace(/\s+/g, '')}&market=india`)}
-                          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.05] transition-all duration-200 cursor-pointer group/item"
+                          onClick={() => setOpenIndex({ index: idx, market: 'india' })}
+                          title={`Open ${idx.name} chart`}
+                          className="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.05] transition-all duration-200 cursor-pointer group/item"
                         >
                           <div className="flex flex-col">
                             <span className="text-[11px] font-medium text-white/90 group-hover/item:text-white transition-colors leading-normal tracking-tight">
@@ -292,7 +297,7 @@ export function DashboardPage() {
                           >
                             {isPositive ? '+' : ''}{idx.changePct.toFixed(2)}%
                           </span>
-                        </div>
+                        </button>
                       )
                     })
                   )}
@@ -327,10 +332,12 @@ export function DashboardPage() {
                     usIndices.map((idx) => {
                       const isPositive = (idx.positive ?? idx.change >= 0)
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={idx.name}
-                          onClick={() => navigate(`/analysis?ticker=${idx.name.replace(/\s+/g, '')}&market=us`)}
-                          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.05] transition-all duration-200 cursor-pointer group/item"
+                          onClick={() => setOpenIndex({ index: idx, market: 'us' })}
+                          title={`Open ${idx.name} chart`}
+                          className="w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.02] hover:bg-white/[0.06] hover:border-white/[0.05] transition-all duration-200 cursor-pointer group/item"
                         >
                           <div className="flex flex-col">
                             <span className="text-[11px] font-medium text-white/90 group-hover/item:text-white transition-colors leading-normal tracking-tight">
@@ -349,7 +356,7 @@ export function DashboardPage() {
                           >
                             {isPositive ? '+' : ''}{idx.changePct.toFixed(2)}%
                           </span>
-                        </div>
+                        </button>
                       )
                     })
                   )}
@@ -399,6 +406,9 @@ export function DashboardPage() {
 
         {/* AI Chatbot Floating Component */}
         <NxtVueChatbot />
+
+        {/* Index chart pop-up (dashboard-only, separate from the /chart page) */}
+        {openIndex && <IndexChartModal index={openIndex.index} market={openIndex.market} onClose={closeIndex} />}
 
         {/* Quick Stock Search Modal */}
         <QuickStockSearchModal

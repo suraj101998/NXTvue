@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildPack, confluence, pack, rsiA, sma, tradePlan, viewLength, volumeProfile, wallClock, type Bar, type RawCandle } from './chartMath'
+import { periodLabel, periodReturn, stampLabel } from './chartFormat'
+
 import { renderChart, type Layers } from './chartSvg'
 
 // Deterministic synthetic candles purely for exercising the maths (never shown in the UI).
@@ -59,17 +61,53 @@ describe('pack and panels', () => {
 })
 
 describe('renderChart', () => {
+  const A = pack(
+    series(120).map((c): Bar => ({ o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
+    series(120).map((c) => new Date(`${c.time}T00:00:00Z`)),
+    'A',
+  )
+  const layers: Layers = { ob: true, fvg: true, sr: true, s20: true, s50: true, s200: true, vol: true, rsi: true, macd: true }
+  const base = { A, N: 60, layers, width: 900, height: 640, hi: null, lo: null, fmt: (p: number) => p.toFixed(2) }
+
   it('renders candles, price tag and crosshair group', () => {
-    const A = pack(
-      series(120).map((c): Bar => ({ o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume })),
-      series(120).map((c) => new Date(`${c.time}T00:00:00Z`)),
-      'A',
-    )
-    const layers: Layers = { ob: true, fvg: true, sr: true, s20: true, s50: true, s200: true, vol: true, rsi: true, macd: true }
-    const g = renderChart({ A, N: 60, layers, width: 900, height: 640, hi: null, lo: null, fmt: (p) => p.toFixed(2) })
+    const g = renderChart({ ...base, style: 'candle' })
     expect(g.svg).toContain('id="xl"')
     expect(g.svg).toContain('RSI 14')
     expect(g.viewBox.startsWith('0 0 900')).toBe(true)
+  })
+
+  it('line style draws one closing-price path and its fill, candle style draws bodies', () => {
+    const line = renderChart({ ...base, style: 'line' })
+    const candle = renderChart({ ...base, style: 'candle' })
+    expect(line.svg).toContain('id="agr"')
+    expect(candle.svg).not.toContain('id="agr"')
+    expect(candle.svg.length).toBeGreaterThan(line.svg.length)
+  })
+
+  it('has crosshair price and time labels and a dot for the line style', () => {
+    const g = renderChart({ ...base, style: 'line' })
+    for (const id of ['xl', 'yl', 'xd', 'xb', 'xt', 'yb', 'yt']) expect(g.svg).toContain(`id="${id}"`)
+    expect(g.mx).toBeGreaterThan(g.mn)
+  })
+})
+
+describe('chart header helpers', () => {
+  it('periodReturn is the percent move and null when it cannot be computed', () => {
+    expect(periodReturn(100, 102.79)).toBeCloseTo(2.79, 2)
+    expect(periodReturn(200, 100)).toBeCloseTo(-50, 5)
+    expect(periodReturn(0, 100)).toBeNull()
+    expect(periodReturn(null, 100)).toBeNull()
+  })
+
+  it('periodLabel reads the timeframe back, All as all time', () => {
+    expect(periodLabel('1W')).toBe('1W')
+    expect(periodLabel('All')).toBe('all time')
+  })
+
+  it("stampLabel matches the index pop-up, e.g. 13 Nov '26 10:30", () => {
+    const d = new Date(Date.UTC(2026, 10, 13, 10, 30))
+    expect(stampLabel(d, true)).toBe("13 Nov '26 10:30")
+    expect(stampLabel(d, false)).toBe("13 Nov '26")
   })
 })
 

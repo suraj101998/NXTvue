@@ -6,7 +6,7 @@ import type { HistoryMarket } from '@/utils/resolveSymbol'
 
 export const TZ: Record<HistoryMarket, string> = { india: 'Asia/Kolkata', us: 'America/New_York' }
 
-const REFRESH_MS: Record<Kind, number> = { I5: 20_000, I30: 60_000, A: 30_000, W: 300_000, M: 300_000 }
+export const REFRESH_MS: Record<Kind, number> = { I5: 20_000, I30: 60_000, A: 30_000, W: 300_000, M: 300_000 }
 
 /** Candles for one timeframe kind, rebuilt into indicator packs and refreshed while the tab is visible. */
 export function usePack(h: { symbol: string; market: HistoryMarket } | undefined, kind: Kind | null): Polled<Pack> {

@@ -40,6 +40,8 @@ _TT_QUOTES = "https://quotes-api.tickertape.in/quotes"
 _NSE = "https://www.nseindia.com"
 _NSE_HEADERS = {"User-Agent": _UA, "Accept": "application/json", "Referer": f"{_NSE}/"}
 
+_NIFTYINDICES_LIST_URL = "https://www.niftyindices.com/IndexConstituent"
+
 # Heatmap index key -> Tickertape index id. Only indices Tickertape actually serves.
 HEATMAP_INDICES: Dict[str, Tuple[str, str]] = {
     "NIFTY50": (".NSEI", "NIFTY 50"),
@@ -52,7 +54,7 @@ HEATMAP_INDICES: Dict[str, Tuple[str, str]] = {
 }
 
 # Sector indices Tickertape has no constituents for. NSE publishes the member list as a CSV;
-# quotes still come from Tickertape. Heatmap index key -> (CSV file name, label).
+# quotes still come from Tickertape. Heatmap index key -> (CSV file name or full URL, label).
 NSE_SECTOR_LISTS: Dict[str, Tuple[str, str]] = {
     "NIFTYPHARMA": ("niftypharma", "NIFTY Pharma"),
     "NIFTYMETAL": ("niftymetal", "NIFTY Metal"),
@@ -64,6 +66,9 @@ NSE_SECTOR_LISTS: Dict[str, Tuple[str, str]] = {
     "NIFTYOILGAS": ("niftyoilgas", "NIFTY Oil & Gas"),
     "NIFTYCONSUMERDURABLES": ("niftyconsumerdurables", "NIFTY Consumer Durables"),
     "NIFTYHEALTHCARE": ("niftyhealthcare", "NIFTY Healthcare"),
+    # Not on nsearchives.nseindia.com; only niftyindices.com publishes these lists.
+    "NIFTYCHEMICALS": (f"{_NIFTYINDICES_LIST_URL}/ind_NiftyChemicals_list.csv", "NIFTY Chemicals"),
+    "NIFTYCEMENT": (f"{_NIFTYINDICES_LIST_URL}/ind_NiftyCement_list.csv", "NIFTY Cement"),
 }
 _LOGO_URL = "https://assets.tickertape.in/stock-logos/{sid}.png"
 _NSE_LIST_URL = "https://nsearchives.nseindia.com/content/indices/ind_{slug}list.csv"
@@ -152,7 +157,8 @@ def _nifty500_by_ticker() -> Dict[str, Dict[str, Any]]:
 
 def _nse_list_members(slug: str) -> List[Dict[str, Any]]:
     """Members of an NSE sector index: NSE's CSV list, resolved to Tickertape ids."""
-    r = requests.get(_NSE_LIST_URL.format(slug=slug), headers={"User-Agent": _UA}, timeout=_TIMEOUT)
+    url = slug if slug.startswith("https://") else _NSE_LIST_URL.format(slug=slug)
+    r = requests.get(url, headers={"User-Agent": _UA}, timeout=_TIMEOUT)
     r.raise_for_status()
     rows = list(csv.DictReader(io.StringIO(r.text)))
     known = _nifty500_by_ticker()

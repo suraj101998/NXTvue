@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { clamp, TIMEFRAMES, tradePlan, viewLength, volumeProfile, type Pack, type TF } from './chartMath'
 import { LAYER_DEFS, renderChart, type LayerKey, type Layers } from './chartSvg'
-import { fmtVol, signed } from './chartFormat'
+import { fmtVol, periodLabel, periodReturn, signed, stampLabel } from './chartFormat'
+import { CandleIcon, LineIcon } from '@/components/charts/ChartStyleIcons'
+import type { ChartStyle } from '@/components/charts/useChartStyle'
 
 type Css = CSSProperties & Record<`--${string}`, string | number>
 const st = (v: Css): CSSProperties => v
@@ -139,19 +141,32 @@ export function Kpis({ s, A, fmt }: { s: Snap; A: Pack | null; fmt: Fmt }) {
 
 // ─── Chart ───────────────────────────────────────────────────────────────────
 
+/** The live figures shown above the chart: price, today's move. Falls back to the last bar when absent. */
+export interface Headline {
+  price: number
+  change: number
+  changePct: number
+}
+
 interface ChartProps {
   view: Pack | null
   tf: TF
   onTf: (t: TF) => void
   layers: Layers
-  onLayer: (k: LayerKey) => void
+  /** Omit to hide the indicator toggles (the dashboard pop-up shows price only). */
+  onLayer?: (k: LayerKey) => void
+  chartStyle: ChartStyle
+  onChartStyle: (s: ChartStyle) => void
+  headline?: Headline | null
+  /** Heading of the panel; null hides it. */
+  title?: ReactNode
   hi: number | null
   lo: number | null
   fmt: Fmt
   status: ReactNode
 }
 
-export function ChartPanel({ view, tf, onTf, layers, onLayer, hi, lo, fmt, status }: ChartProps) {
+export function ChartPanel({ view, tf, onTf, layers, onLayer, chartStyle, onChartStyle, headline, title = 'Price chart', hi, lo, fmt, status }: ChartProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
@@ -176,35 +191,53 @@ export function ChartPanel({ view, tf, onTf, layers, onLayer, hi, lo, fmt, statu
 
   const N = view ? viewLength(tf, view) : 0
   const geo = useMemo(
-    () => (view && N ? renderChart({ A: view, N, layers, width: size.w, height: size.h, hi, lo, fmt: fmt.F }) : null),
-    [view, N, layers, size.w, size.h, hi, lo, fmt.F],
+    () => (view && N ? renderChart({ A: view, N, layers, style: chartStyle, width: size.w, height: size.h, hi, lo, fmt: fmt.F }) : null),
+    [view, N, layers, chartStyle, size.w, size.h, hi, lo, fmt.F],
   )
 
   const idx = view ? (hover == null ? view.n - 1 : clamp(hover, 0, view.n - 1)) : 0
+  const e = view?.a[idx]
+  const intraday = view?.k === 'I5' || view?.k === 'I30'
+  const stamp = view ? stampLabel(view.dt[idx], intraday) : ''
 
-  // The template writes the per-pane header values straight into the SVG text nodes.
+  // The template writes the per-pane header values and the crosshair straight into the SVG nodes.
   useEffect(() => {
-    if (!view || !svg.current) return
-    const e = view.a[idx]
+    if (!view || !svg.current || !e) return
+    const root = svg.current
     const set = (id: string, x: string) => {
-      const el = svg.current?.querySelector(`#${id}`)
+      const el = root.querySelector(`#${id}`)
       if (el) el.textContent = x
     }
     set('hvv', `${fmtVol(e.v)}${view.vma[idx] ? `  ·  avg ${fmtVol(view.vma[idx] as number)}` : ''}`)
     set('hrv', view.rsi[idx] == null ? '—' : (view.rsi[idx] as number).toFixed(1))
     set('hmv', `${view.hist[idx] >= 0 ? '+' : '−'}${Math.abs(view.hist[idx]).toFixed(2)}`)
-    const g = svg.current.querySelector<SVGGElement>('#xh')
-    const xl = svg.current.querySelector<SVGLineElement>('#xl')
-    if (g && xl && geo) {
-      if (hover == null) g.style.display = 'none'
-      else {
-        const x = (idx - geo.s) * geo.w + geo.w / 2
-        g.style.display = ''
-        xl.setAttribute('x1', String(x))
-        xl.setAttribute('x2', String(x))
-      }
+    const g = root.querySelector<SVGGElement>('#xh')
+    if (!g || !geo) return
+    if (hover == null) {
+      g.style.display = 'none'
+      return
     }
-  }, [view, idx, hover, geo])
+    const attrs = (id: string, a: Record<string, number | string>) => {
+      const el = root.querySelector(`#${id}`)
+      if (el) for (const [k, v] of Object.entries(a)) el.setAttribute(k, String(v))
+    }
+    const x = (idx - geo.s) * geo.w + geo.w / 2
+    const y = geo.top + ((geo.mx - e.c) / (geo.mx - geo.mn || 1)) * geo.ph
+    const price = fmt.F(e.c)
+    const lw = stamp.length * 6.2 + 18
+    const lx = clamp(x - lw / 2, 0, geo.pw - lw)
+    g.style.display = ''
+    attrs('xl', { x1: x, x2: x })
+    attrs('yl', { y1: y, y2: y })
+    attrs('xd', { cx: x, cy: y })
+    root.querySelector<SVGElement>('#xd')?.style.setProperty('display', chartStyle === 'line' ? '' : 'none')
+    attrs('xb', { x: lx, width: lw })
+    attrs('xt', { x: lx + lw / 2 })
+    set('xt', stamp)
+    attrs('yb', { y: y - 9 })
+    attrs('yt', { y: y + 3.5 })
+    set('yt', price)
+  }, [view, idx, hover, geo, e, stamp, chartStyle, fmt])
 
   const onMove = (ev: React.PointerEvent<SVGSVGElement>) => {
     if (!geo || !view) return
@@ -215,71 +248,100 @@ export function ChartPanel({ view, tf, onTf, layers, onLayer, hi, lo, fmt, statu
     setHover(clamp(geo.s + Math.floor(x / geo.w), geo.s, view.n - 1))
   }
 
-  const e = view?.a[idx]
+  // Return over the chosen window: from the close before its first bar (its open if there is none).
+  const s0 = view && N ? view.n - N : 0
+  const lastBar = view?.a[view.n - 1]
+  const base = view ? (s0 > 0 ? view.a[s0 - 1].c : view.a[s0].o) : null
+  const pr = periodReturn(base, lastBar?.c)
+  const today = headline ?? (lastBar && view && view.n > 1 ? { price: lastBar.c, change: lastBar.c - view.a[view.n - 2].c, changePct: (lastBar.c / view.a[view.n - 2].c - 1) * 100 } : null)
+
   const pv = view && idx ? view.a[idx - 1].c : e?.o
   const chg = e && pv ? (e.c / pv - 1) * 100 : 0
   const q = (x: number | null | undefined) => (x == null ? '—' : fmt.F(x))
-  const stamp = view
-    ? (() => {
-        const t = view.dt[idx].toISOString()
-        return view.k === 'I5' || view.k === 'I30' ? t.slice(0, 16).replace('T', ' ') : t.slice(0, 10)
-      })()
-    : ''
+  const smaOn = layers.s20 || layers.s50 || layers.s200
 
   return (
     <div className="pn ch">
       <div className="tl">
-        <h3 style={{ margin: 0 }}>Price chart</h3>
+        {title ? <h3 style={{ margin: 0 }}>{title}</h3> : null}
         <span className="sp" />
         <div className="rg seg">
           {TIMEFRAMES.map((t) => (
-            <button key={t} type="button" className={t === tf ? 'on' : ''} onClick={() => onTf(t)}>
+            <button key={t} type="button" className={t === tf ? 'on' : ''} aria-pressed={t === tf} onClick={() => onTf(t)}>
               {t}
             </button>
           ))}
+          <span className="dv" aria-hidden="true" />
+          <button type="button" className={`cs${chartStyle === 'candle' ? ' on' : ''}`} aria-pressed={chartStyle === 'candle'} title="Candlesticks" onClick={() => onChartStyle('candle')}>
+            <CandleIcon />
+            <span className="sr-only">Candlesticks</span>
+          </button>
+          <button type="button" className={`cs${chartStyle === 'line' ? ' on' : ''}`} aria-pressed={chartStyle === 'line'} title="Line" onClick={() => onChartStyle('line')}>
+            <LineIcon />
+            <span className="sr-only">Line</span>
+          </button>
         </div>
       </div>
       <div className="ro">
         {e && view ? (
           <>
-            <div className="r1">
-              <b>{stamp}</b>
-              <span>
-                <em>O</em>
-                {q(e.o)}
-              </span>
-              <span>
-                <em>H</em>
-                {q(e.h)}
-              </span>
-              <span>
-                <em>L</em>
-                {q(e.l)}
-              </span>
-              <span>
-                <em>C</em>
-                {q(e.c)}
-              </span>
-              <span className={chg >= 0 ? 'up' : 'dn'}>
-                {chg >= 0 ? '+' : '−'}
-                {Math.abs(chg).toFixed(2)}%
-              </span>
-            </div>
-            <div className="r2">
-              {(
-                [
-                  ['SMA 20', 's20', 'var(--s20)'],
-                  ['SMA 50', 's50', 'var(--s50)'],
-                  ['SMA 200', 's200', 'var(--s200)'],
-                ] as const
-              ).map(([l, k, c]) => (
-                <span key={k}>
-                  <i style={st({ '--c': c })} />
-                  {l}
-                  <b>{q(view[k][idx])}</b>
+            {today && (
+              <div className="sm">
+                <b className="bp">{fmt.F(today.price)}</b>
+                <span className={`tc ${today.change >= 0 ? 'up' : 'dn'}`}>
+                  {today.change >= 0 ? '+' : '−'}
+                  {fmt.F(Math.abs(today.change))} ({today.changePct >= 0 ? '+' : '−'}
+                  {Math.abs(today.changePct).toFixed(2)}%) today
                 </span>
-              ))}
-            </div>
+                {pr !== null && (
+                  <span className={`pc ${pr >= 0 ? 'up' : 'dn'}`}>
+                    {signed(pr)}% over {periodLabel(tf)}
+                  </span>
+                )}
+              </div>
+            )}
+            {chartStyle === 'candle' && (
+              <div className="r1">
+                <b>{stamp}</b>
+                <span>
+                  <em>O</em>
+                  {q(e.o)}
+                </span>
+                <span>
+                  <em>H</em>
+                  {q(e.h)}
+                </span>
+                <span>
+                  <em>L</em>
+                  {q(e.l)}
+                </span>
+                <span>
+                  <em>C</em>
+                  {q(e.c)}
+                </span>
+                <span className={chg >= 0 ? 'up' : 'dn'}>
+                  {chg >= 0 ? '+' : '−'}
+                  {Math.abs(chg).toFixed(2)}%
+                </span>
+              </div>
+            )}
+            {smaOn && (
+              <div className="r2">
+                {(
+                  [
+                    ['SMA 20', 's20', 'var(--s20)'],
+                    ['SMA 50', 's50', 'var(--s50)'],
+                    ['SMA 200', 's200', 'var(--s200)'],
+                  ] as const
+                ).map(([l, k, c]) => (
+                  <span key={k}>
+                    <i style={st({ '--c': c })} />
+                    {l}
+                    <b>{q(view[k][idx])}</b>
+                  </span>
+                ))}
+              </div>
+            )}
           </>
         ) : null}
       </div>
@@ -299,34 +361,36 @@ export function ChartPanel({ view, tf, onTf, layers, onLayer, hi, lo, fmt, statu
           </div>
         )}
       </div>
-      <div className="tfb">
-        <div className="tl" style={{ margin: 0, justifyContent: 'center' }}>
-          {[0, 1, 2].map((g) => (
-            <div key={g} className="grp">
-              {LAYER_DEFS.filter((l) => l.group === g).map((l) => (
-                <span
-                  key={l.key}
-                  className={`ck${layers[l.key] ? ' on' : ''}`}
-                  role="checkbox"
-                  aria-checked={layers[l.key]}
-                  tabIndex={0}
-                  style={st({ '--c': l.color })}
-                  onClick={() => onLayer(l.key)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === ' ' || ev.key === 'Enter') {
-                      ev.preventDefault()
-                      onLayer(l.key)
-                    }
-                  }}
-                >
-                  <i />
-                  {l.label}
-                </span>
-              ))}
-            </div>
-          ))}
+      {onLayer && (
+        <div className="tfb">
+          <div className="tl" style={{ margin: 0, justifyContent: 'center' }}>
+            {[0, 1, 2].map((g) => (
+              <div key={g} className="grp">
+                {LAYER_DEFS.filter((l) => l.group === g).map((l) => (
+                  <span
+                    key={l.key}
+                    className={`ck${layers[l.key] ? ' on' : ''}`}
+                    role="checkbox"
+                    aria-checked={layers[l.key]}
+                    tabIndex={0}
+                    style={st({ '--c': l.color })}
+                    onClick={() => onLayer(l.key)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === ' ' || ev.key === 'Enter') {
+                        ev.preventDefault()
+                        onLayer(l.key)
+                      }
+                    }}
+                  >
+                    <i />
+                    {l.label}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

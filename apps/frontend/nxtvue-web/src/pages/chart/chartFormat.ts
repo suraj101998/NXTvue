@@ -27,6 +27,28 @@ export const fmtVol = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v 
 
 export const signed = (x: number, d = 2) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(d)}`
 
+/** Return over a chart window, in percent: last price against the open of the window's first bar. */
+export function periodReturn(first: number | null | undefined, last: number | null | undefined): number | null {
+  if (first == null || last == null || !Number.isFinite(first) || !Number.isFinite(last) || first === 0) return null
+  return (last / first - 1) * 100
+}
+
+/** "+2.79% over 5D" reads the timeframe as the user picked it; "All" reads as all time. */
+export const periodLabel = (tf: string) => (tf === 'All' ? 'all time' : tf)
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * Crosshair time label, e.g. "13 Nov '26 10:30" for intraday bars or "13 Nov '26" for daily and longer.
+ * `d` carries the exchange wall-clock time in its UTC fields (see `wallClock`).
+ */
+export function stampLabel(d: Date, intraday: boolean): string {
+  const day = `${d.getUTCDate()} ${MON[d.getUTCMonth()]} '${String(d.getUTCFullYear()).slice(2)}`
+  if (!intraday) return day
+  const p = (x: number) => String(x).padStart(2, '0')
+  return `${day} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
+}
+
 /** 4.93T / 302.97B / 12.4M. */
 export function big(n: number | null | undefined, d = 2): string {
   if (n == null || !Number.isFinite(n)) return '—'

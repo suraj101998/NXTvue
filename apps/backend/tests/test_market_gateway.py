@@ -30,6 +30,7 @@ def test_validate_params_defaults_and_errors():
 def test_yahoo_candidates():
     assert mg._yahoo_candidates("RELIANCE.NS", "india") == ["RELIANCE.NS", "RELIANCE.BO"]
     assert mg._yahoo_candidates("NVDA", "us") == ["NVDA"]
+    assert mg._yahoo_candidates("^NSEI", "india") == ["^NSEI"]
 
 
 def test_bar_time_formats():

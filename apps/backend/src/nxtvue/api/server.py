@@ -131,6 +131,7 @@ def _fetch_live_indices() -> Dict[str, Any]:
                     change_pct = (change / prev * 100) if prev else 0.0
                     result[market].append({
                         "name":      name,
+                        "symbol":    sym,
                         "value":     round(price, 2),
                         "change":    round(change, 2),
                         "changePct": round(change_pct, 2),
@@ -141,7 +142,7 @@ def _fetch_live_indices() -> Dict[str, Any]:
                 except Exception as exc:
                     logger.debug("Index fetch failed for %s: %s", sym, exc)
                     result[market].append({
-                        "name": name, "value": 0.0,
+                        "name": name, "symbol": sym, "value": 0.0,
                         "change": 0.0, "changePct": 0.0,
                         "positive": True, "source": source, "type": idx_type,
                     })
@@ -157,6 +158,7 @@ def _fetch_live_indices() -> Dict[str, Any]:
 
 class IndexQuote(BaseModel):
     name: str
+    symbol: Optional[str] = None  # Yahoo symbol, e.g. ^NSEI, used to chart the index
     value: float
     change: float
     changePct: float

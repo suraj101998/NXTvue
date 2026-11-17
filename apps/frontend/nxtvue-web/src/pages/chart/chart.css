@@ -556,3 +556,37 @@ html:has(.nxc[data-theme="light"]){scrollbar-color:#d1b878 #f8f2e4}
 .nxc .k .v em,.nxc .qt b i{-webkit-text-fill-color:currentColor}
 .nxc .qt b i{color:var(--mute)}
 .nxc h3{padding-bottom:.08em}
+
+/* ── Price chart: style switch, summary row, crosshair ─────────────────────── */
+/* The candle/line switch lives inside the timeframe pill, after a hairline divider */
+.nxc .tl .seg .dv{align-self:center;flex:none;width:1px;height:20px;margin:0 8px;background:currentColor;opacity:.22}
+.nxc .tl .seg button.cs{display:inline-flex;align-items:center;justify-content:center;line-height:0;opacity:.6;transition:opacity .2s,background .3s,box-shadow .3s}
+.nxc .tl .seg button.cs:hover,.nxc .tl .seg button.cs.on{opacity:1}
+.nxc .ro .sm{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.nxc .ro .sm .bp{font:600 28px/1.1 var(--mono);letter-spacing:-.02em;color:var(--ink)}
+.nxc .ro .sm .tc{font:600 14px var(--mono)}
+.nxc .ro .sm .pc{font:600 13px var(--mono)}
+/* The chart embedded in the dashboard pop-up: no page backdrop, a shorter plot */
+.nxc.nxc-embed{min-height:0;background:transparent;overflow:visible;padding:0}
+.nxc.nxc-embed::before{display:none}
+.nxc.nxc-embed .ch{padding:16px 24px 14px}
+/* Pop-up layout: price summary first, then a plain timeframe row, then the chart */
+.nxc.nxc-embed .ro{order:0;margin:0 0 14px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.nxc.nxc-embed .ro .r1{display:none}
+.nxc.nxc-embed .ro .sm .bp{font-size:24px}
+.nxc.nxc-embed .ro .sm .tc{font-size:12.5px}
+.nxc.nxc-embed .ro .sm .pc{font-size:11.5px}
+.nxc.nxc-embed .tl{order:1;margin:0 0 6px}
+.nxc.nxc-embed .tl .sp{display:none}
+.nxc.nxc-embed .sw{order:2}
+.nxc.nxc-embed .tl .rg.seg{margin-left:0;flex-wrap:wrap;justify-content:flex-start;padding:0;gap:2px;border:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.nxc.nxc-embed .tl .rg.seg button{padding:6px 13px;border-radius:999px;font:600 12px var(--sans);letter-spacing:0;color:var(--mute);background:none;box-shadow:none;text-shadow:none}
+.nxc.nxc-embed .tl .rg.seg button:hover:not(.on){color:var(--ink);background:none}
+/* Active timeframe: gold > orange (CSS names), a bright amber that reads on both the navy and the white pop-up */
+.nxc.nxc-embed .tl .rg.seg button.on{background:linear-gradient(180deg,#FFD700 0%,#FFA500 100%);color:#1a1405;text-shadow:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 3px rgba(150,70,0,.3),0 0 0 1px rgba(255,140,0,.55),0 6px 18px -4px rgba(255,140,0,.65)}
+.nxc.nxc-embed .tl .rg.seg button.cs{padding:7px 10px}
+.nxc.nxc-embed .tl .rg.seg button.cs.on{background:rgba(255,165,0,.16);color:inherit;box-shadow:inset 0 0 0 1px #FFA500}
+.nxc.nxc-embed .sw{min-height:340px}
+@media(max-width:760px){.nxc.nxc-embed .sw{min-height:300px}}
+.nxc.nxc-embed .pn.ch{border:0;background:transparent;border-radius:0}

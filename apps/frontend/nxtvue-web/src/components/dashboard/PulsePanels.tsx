@@ -141,10 +141,7 @@ function Loading({ what, hint }: { what: string; hint?: string }) {
   )
 }
 
-const SECTOR_NAMES = new Set([
-  ...Object.keys(SECTOR_HEATMAP),
-  'NIFTY CHEMICALS', 'NIFTY CEMENT',
-])
+const SECTOR_NAMES = new Set(Object.keys(SECTOR_HEATMAP))
 
 export function IndiaPulsePanel({ pulse, activeSector, onPickSector }: PanelProps<IndiaPulse>) {
   const { data, loading, error } = pulse

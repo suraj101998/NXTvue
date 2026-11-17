@@ -1,4 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { chartPath } from '@/utils/resolveSymbol'
 import { RefreshButton } from '@/components/layout/PageActions'
 import { Reveal } from '@/components/motion/Reveal'
 import { useIndices } from '@/hooks/useIndices'
@@ -50,6 +52,7 @@ interface OpenSector {
 }
 
 export function MarketOverviewSection() {
+  const navigate = useNavigate()
   const { data: indices, refresh: refreshIndices } = useIndices()
   const [market, setMarket] = useState<Market>('india')
   const [openSector, setOpenSector] = useState<OpenSector | null>(null)
@@ -181,6 +184,7 @@ export function MarketOverviewSection() {
                 label={openSector.label}
                 load={(signal) => fetchIndiaHeatmap(SECTOR_HEATMAP[openSector.key], signal)}
                 refreshSignal={heatmapReload}
+                onSelect={(symbol) => navigate(chartPath(symbol, 'india'))}
               />
             ) : (
               <StockHeatmap
@@ -189,6 +193,7 @@ export function MarketOverviewSection() {
                 currency={{ symbol: '$', locale: 'en-US' }}
                 load={(signal) => fetchUsHeatmap(openSector.key, signal)}
                 refreshSignal={heatmapReload}
+                onSelect={(symbol) => navigate(chartPath(symbol, 'us'))}
               />
             )}
           </div>

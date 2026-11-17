@@ -1,5 +1,6 @@
 /** SVG string renderer for the charts terminal: a typed port of the reference template's `chart()`. */
 import { axisLabel, levels, type Pack } from './chartMath'
+import type { ChartStyle } from '@/components/charts/useChartStyle'
 
 export type LayerKey = 'ob' | 'fvg' | 'sr' | 's20' | 's50' | 's200' | 'vol' | 'rsi' | 'macd'
 export type Layers = Record<LayerKey, boolean>
@@ -20,6 +21,8 @@ export interface ChartInput {
   A: Pack
   N: number
   layers: Layers
+  /** 'line' draws the closes as a filled line, 'candle' draws candlesticks. */
+  style: ChartStyle
   width: number
   height: number
   hi: number | null
@@ -30,6 +33,13 @@ export interface ChartInput {
 export interface ChartGeometry {
   svg: string
   viewBox: string
+  /** top of the price pane, its height and the price range it spans (to turn a pointer y into a price and back) */
+  top: number
+  ph: number
+  mn: number
+  mx: number
+  /** y of the time axis, where the crosshair time label sits */
+  axisY: number
   /** index of the first visible bar */
   s: number
   /** pixel width of one bar */
@@ -48,9 +58,10 @@ export function renderChart(inp: ChartInput): ChartGeometry {
   const s = n - N
   const v = a.slice(s)
   const VW = Math.max(340, inp.width || 960)
-  const VH = Math.max(520, inp.height || 680)
+  const VH = Math.max(320, inp.height || 680)
   const tg = VW >= 700
-  const G = tg ? 150 : 84
+  // The extra right-hand room only holds the zone/level tags, so skip it when none can show.
+  const G = tg && (LY.ob || LY.fvg || LY.sr) ? 150 : 84
   const W = VW - G
   const w = W / N
   const cw = Math.max(1.5, w * 0.62)
@@ -100,6 +111,8 @@ export function renderChart(inp: ChartInput): ChartGeometry {
   })
 
   const lc = a[n - 1].c
+  // The window's direction colours the line, its fill and the last-price marker.
+  const cc = lc >= v[0].o ? 'var(--good)' : 'var(--bad)'
   const tgs: { y: number; t: string; c: string; sr?: boolean }[] = []
   const near = (z: { top: number; bot: number }) => Math.abs((z.top + z.bot) / 2 - lc)
   const zone = (z: { i: number; top: number; bot: number }, c: string, txt: string, dash: string, cls: string, ttl: string) => {
@@ -143,11 +156,19 @@ export function renderChart(inp: ChartInput): ChartGeometry {
         tgs.push({ y: yy, t: `${q.n} ${F(q.p)}`, c: 'var(--mute)', sr: true })
       })
 
-  v.forEach((e, i) => {
-    const c = e.c >= e.o ? 'var(--good)' : 'var(--bad)'
-    const x = X(s + i)
-    o += `<line x1="${x}" x2="${x}" y1="${Y(e.h)}" y2="${Y(e.l)}" stroke="${c}"/><rect x="${x - cw / 2}" y="${Y(Math.max(e.o, e.c))}" width="${cw}" height="${Math.max(1, Math.abs(Y(e.o) - Y(e.c)))}" fill="${c}"/>`
-  })
+  if (inp.style === 'line') {
+    const pts = v.map((e, i) => `${X(s + i).toFixed(1)} ${Y(e.c).toFixed(1)}`)
+    const base = 8 + PH
+    o += `<defs><linearGradient id="agr" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:${cc};stop-opacity:.35"/><stop offset="1" style="stop-color:${cc};stop-opacity:0"/></linearGradient></defs>`
+    o += `<path d="M${X(s).toFixed(1)} ${base}L${pts.join('L')}L${X(n - 1).toFixed(1)} ${base}Z" fill="url(#agr)"/>`
+    o += `<path d="M${pts.join('L')}" fill="none" stroke="${cc}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
+  } else {
+    v.forEach((e, i) => {
+      const c = e.c >= e.o ? 'var(--good)' : 'var(--bad)'
+      const x = X(s + i)
+      o += `<line x1="${x}" x2="${x}" y1="${Y(e.h)}" y2="${Y(e.l)}" stroke="${c}"/><rect x="${x - cw / 2}" y="${Y(Math.max(e.o, e.c))}" width="${cw}" height="${Math.max(1, Math.abs(Y(e.o) - Y(e.c)))}" fill="${c}"/>`
+    })
+  }
 
   const ln = (arr: (number | null)[], col: string, wd: number, yf: (q: number) => number) => {
     let q = ''
@@ -180,7 +201,7 @@ export function renderChart(inp: ChartInput): ChartGeometry {
         : `<rect x="${W + 76}" y="${t.y - 9}" width="${wd}" height="18" rx="9" fill="${t.c}"/><text x="${W + 82}" y="${t.y + 3.5}" style="fill:var(--zt);font-size:10px;font-weight:800;letter-spacing:.02em">${esc(t.t)}</text>`
     })
   }
-  o += `<line x1="0" x2="${W}" y1="${Y(lc)}" y2="${Y(lc)}" stroke="var(--acc)" stroke-dasharray="3 3"/><rect x="${W + 2}" y="${Y(lc) - 9}" width="70" height="18" rx="4" fill="var(--acc)"/><text x="${W + 8}" y="${Y(lc) + 3.5}" style="fill:#04110e;font-weight:600">${F(lc)}</text>`
+  o += `<line x1="0" x2="${W}" y1="${Y(lc)}" y2="${Y(lc)}" stroke="${cc}" stroke-width="1.6" stroke-dasharray="1 4" stroke-linecap="round"/><rect x="${W + 2}" y="${Y(lc) - 9}" width="70" height="18" rx="4" fill="${cc}"/><text x="${W + 8}" y="${Y(lc) + 3.5}" style="fill:var(--zt);font-weight:600">${F(lc)}</text>`
 
   const HT = 'style="fill:var(--ink);font-weight:500"'
   const HV = 'dx="8" style="fill:var(--mute);font-weight:400"'
@@ -209,6 +230,9 @@ export function renderChart(inp: ChartInput): ChartGeometry {
     })
     o += ln(A.macd, 'var(--macd)', 1.8, M) + ln(A.sig, 'var(--sig)', 1.8, M)
   }
-  o += `<g id="xh" style="display:none;pointer-events:none"><line id="xl" y1="8" y2="${AY}" stroke="var(--ink)" stroke-dasharray="3 3" opacity=".6"/></g>`
-  return { svg: o, viewBox: `0 0 ${VW} ${H}`, s, w, pw: W, height: H }
+  // Crosshair: dashed lines, a dot on the line chart, and labels on both axes. ChartPanel moves them.
+  const lab = 'fill:var(--ink)'
+  const labText = 'fill:var(--bg);font-size:10px;font-weight:600'
+  o += `<g id="xh" style="display:none;pointer-events:none"><line id="xl" y1="8" y2="${AY}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="5 4" opacity=".7"/><line id="yl" x1="0" x2="${W}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="5 4" opacity=".7"/><circle id="xd" r="4.5" fill="${cc}" stroke="var(--bg)" stroke-width="1.5" style="display:none"/><rect id="xb" y="${AY + 3}" height="18" rx="4" style="${lab}"/><text id="xt" y="${AY + 15.5}" text-anchor="middle" style="${labText}"></text><rect id="yb" x="${W + 2}" width="70" height="18" rx="4" style="${lab}"/><text id="yt" x="${W + 8}" style="${labText}"></text></g>`
+  return { svg: o, viewBox: `0 0 ${VW} ${H}`, top: 8, ph: PH, mn, mx, axisY: AY, s, w, pw: W, height: H }
 }

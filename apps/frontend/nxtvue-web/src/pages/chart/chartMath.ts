@@ -285,7 +285,7 @@ export const KIND_SOURCE: Record<Kind, { interval: '5m' | '30m' | '1d' | '1wk' |
   I30: { interval: '30m', range: '1mo' },
 }
 
-function barsInLastDays(A: Pack, days: number): number {
+function barsInLastDays(A: Pick<Pack, 'n' | 'dt'>, days: number): number {
   const seen = new Set<number>()
   let count = 0
   for (let i = A.n - 1; i >= 0; i--) {
@@ -300,7 +300,7 @@ function barsInLastDays(A: Pack, days: number): number {
 }
 
 /** How many bars of `A` the timeframe shows. */
-export function viewLength(tf: TF, A: Pack): number {
+export function viewLength(tf: TF, A: Pick<Pack, 'n' | 'dt'>): number {
   const [kind, n0] = TFS[tf]
   let N = n0
   if (kind === 'I5') N = barsInLastDays(A, 1)
